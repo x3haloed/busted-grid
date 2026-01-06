@@ -3,6 +3,7 @@
 ## Quick start
 
 ```bash
+npm --version # ensure npm >= 7 (workspace protocol support)
 npm install
 npm run build
 ```

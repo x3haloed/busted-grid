@@ -100,6 +100,7 @@ The Angular adapter ships as a standalone component, so you can import it direct
 ## Developing in this repo
 
 ```bash
+npm --version # ensure npm >= 7 (workspace protocol support)
 npm install        # installs root + workspace deps
 npm run build      # compiles every package (tsc -p packages/*)
 ```

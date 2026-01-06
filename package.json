@@ -5,6 +5,10 @@
   "workspaces": [
     "packages/*"
   ],
+  "engines": {
+    "node": ">=18",
+    "npm": ">=7"
+  },
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "clean": "rimraf packages/*/dist"
