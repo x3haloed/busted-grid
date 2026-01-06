@@ -1,0 +1,21 @@
+{
+  "name": "@busted-grid/keyboard",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@busted-grid/runtime": "workspace:*"
+  },
+  "peerDependencies": {
+    "@busted-grid/runtime": "^0.1.0"
+  }
+}
