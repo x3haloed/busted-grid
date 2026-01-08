@@ -25,6 +25,8 @@ export function GridView({
   renderCell = defaultRenderer,
   virtualization
 }: GridViewProps): JSX.Element {
+  const idPrefix = React.useId()
+  const scrollRef = React.useRef<HTMLDivElement>(null)
   const [scroll, setScroll] = React.useState({ top: 0, left: 0 })
   const viewport = virtualization
     ? {
@@ -67,18 +69,43 @@ export function GridView({
   const colIndexes = useVirtual
     ? Array.from({ length: colEnd - colStart + 1 }, (_, i) => colStart + i)
     : Array.from({ length: cols }, (_, i) => i)
+  const activeDescendant = vm.focus
+    ? `${idPrefix}-cell-${vm.focus.row}-${vm.focus.col}`
+    : undefined
   const table = (
-    <table tabIndex={0} style={useVirtual ? { tableLayout: "fixed" } : undefined}>
+    <table
+      tabIndex={0}
+      role="grid"
+      aria-rowcount={rows}
+      aria-colcount={cols}
+      aria-multiselectable={vm.selectionRange ? "true" : "false"}
+      aria-activedescendant={activeDescendant}
+      style={useVirtual ? { tableLayout: "fixed" } : undefined}
+    >
       <tbody>
         {useVirtual && topOffset > 0 && (
-          <tr>
-            <td colSpan={columnSlots} style={{ height: topOffset }} />
+          <tr role="presentation">
+            <td
+              role="presentation"
+              aria-hidden="true"
+              colSpan={columnSlots}
+              style={{ height: topOffset, border: "none", padding: 0 }}
+            />
           </tr>
         )}
         {rowIndexes.map(r => (
-          <tr key={r} style={useVirtual ? { height: virtualization?.rowHeight } : undefined}>
+          <tr
+            key={r}
+            role="row"
+            aria-rowindex={r + 1}
+            style={useVirtual ? { height: virtualization?.rowHeight } : undefined}
+          >
             {useVirtual && leftOffset > 0 && (
-              <td style={{ width: leftOffset }} />
+              <td
+                role="presentation"
+                aria-hidden="true"
+                style={{ width: leftOffset, border: "none", padding: 0 }}
+              />
             )}
             {colIndexes.map(c => {
               const cell = { row: r, col: c }
@@ -104,6 +131,10 @@ export function GridView({
                   data-focused={focused || undefined}
                   data-selected={selected || undefined}
                   data-editing={editing || undefined}
+                  role="gridcell"
+                  aria-colindex={c + 1}
+                  aria-selected={selected}
+                  id={`${idPrefix}-cell-${r}-${c}`}
                   style={
                     useVirtual
                       ? {
@@ -112,30 +143,89 @@ export function GridView({
                         }
                       : undefined
                   }
-                  onClick={() =>
+                  onClick={event => {
+                    if (event.shiftKey) {
+                      const anchor =
+                        vm.selection.anchor ?? vm.focus
+                      if (!anchor) {
+                        runtime.dispatch({
+                          type: "SET_ANCHOR",
+                          cell
+                        })
+                      }
+                      runtime.dispatch({
+                        type: "EXTEND_SELECTION",
+                        cell
+                      })
+                      return
+                    }
                     runtime.dispatch({
                       type: "SELECT_CELL",
                       cell
                     })
-                  }
+                  }}
                 >
                   {renderCell(cell)}
                 </td>
               )
             })}
             {useVirtual && rightOffset > 0 && (
-              <td style={{ width: rightOffset }} />
+              <td
+                role="presentation"
+                aria-hidden="true"
+                style={{ width: rightOffset, border: "none", padding: 0 }}
+              />
             )}
           </tr>
         ))}
         {useVirtual && bottomOffset > 0 && (
-          <tr>
-            <td colSpan={columnSlots} style={{ height: bottomOffset }} />
+          <tr role="presentation">
+            <td
+              role="presentation"
+              aria-hidden="true"
+              colSpan={columnSlots}
+              style={{ height: bottomOffset, border: "none", padding: 0 }}
+            />
           </tr>
         )}
       </tbody>
     </table>
   )
+
+  React.useLayoutEffect(() => {
+    if (!virtualization) return
+    const focus = vm.focus
+    const container = scrollRef.current
+    if (!focus || !container) return
+    const viewHeight = virtualization.height
+    const viewWidth = virtualization.width
+    const cellTop = focus.row * virtualization.rowHeight
+    const cellBottom = cellTop + virtualization.rowHeight
+    const cellLeft = focus.col * virtualization.colWidth
+    const cellRight = cellLeft + virtualization.colWidth
+    let nextTop = container.scrollTop
+    let nextLeft = container.scrollLeft
+
+    if (cellTop < nextTop) {
+      nextTop = cellTop
+    } else if (cellBottom > nextTop + viewHeight) {
+      nextTop = cellBottom - viewHeight
+    }
+
+    if (cellLeft < nextLeft) {
+      nextLeft = cellLeft
+    } else if (cellRight > nextLeft + viewWidth) {
+      nextLeft = cellRight - viewWidth
+    }
+
+    if (nextTop !== container.scrollTop) {
+      container.scrollTop = nextTop
+    }
+    if (nextLeft !== container.scrollLeft) {
+      container.scrollLeft = nextLeft
+    }
+    setScroll({ top: nextTop, left: nextLeft })
+  }, [virtualization, vm.focus])
 
   if (!virtualization) {
     return table
@@ -143,6 +233,7 @@ export function GridView({
 
   return (
     <div
+      ref={scrollRef}
       style={{
         width: virtualization.width,
         height: virtualization.height,

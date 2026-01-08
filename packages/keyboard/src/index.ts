@@ -52,6 +52,15 @@ export function attachKeyboard(
       return
     }
 
+    if (event.key === "Tab") {
+      const direction = event.shiftKey ? -1 : 1
+      runtime.dispatch({ type: "MOVE_FOCUS", dx: direction, dy: 0 })
+      if (preventDefault) {
+        event.preventDefault()
+      }
+      return
+    }
+
     const binding = bindings[event.key] ?? DEFAULT_BINDINGS[event.key]
     if (!binding) return
 

@@ -22,6 +22,7 @@ export interface DomGridOptions {
     colWidth: number
     overscan?: number
   }
+  idPrefix?: string
 }
 
 const defaultCellFormatter = (cell: Cell): string => `${cell.row},${cell.col}`
@@ -31,7 +32,8 @@ export function renderGrid(
   runtime: GridRuntime,
   options: DomGridOptions
 ): void {
-  const { rows, cols, classNames, cellFormatter, virtualization } = options
+  const { rows, cols, classNames, cellFormatter, virtualization, idPrefix } =
+    options
   const formatCell = cellFormatter ?? defaultCellFormatter
   const viewport = virtualization
     ? {
@@ -56,6 +58,22 @@ export function renderGrid(
 
   const table = document.createElement("table")
   table.tabIndex = 0
+  table.setAttribute("role", "grid")
+  table.setAttribute("aria-rowcount", String(rows))
+  table.setAttribute("aria-colcount", String(cols))
+  table.setAttribute(
+    "aria-multiselectable",
+    selectionRange ? "true" : "false"
+  )
+  if (vm.focus) {
+    table.setAttribute(
+      "aria-activedescendant",
+      getCellId(vm.focus.row, vm.focus.col, idPrefix)
+    )
+  }
+  if (virtualization) {
+    table.style.tableLayout = "fixed"
+  }
   if (classNames?.table) {
     table.classList.add(classNames.table)
   }
@@ -83,22 +101,33 @@ export function renderGrid(
 
   if (useVirtual && topOffset > 0) {
     const spacerRow = document.createElement("tr")
+    spacerRow.setAttribute("role", "presentation")
     const spacerCell = document.createElement("td")
+    spacerCell.setAttribute("role", "presentation")
+    spacerCell.setAttribute("aria-hidden", "true")
     spacerCell.colSpan = columnSlots
     spacerCell.style.height = `${topOffset}px`
+    spacerCell.style.border = "none"
+    spacerCell.style.padding = "0"
     spacerRow.appendChild(spacerCell)
     table.appendChild(spacerRow)
   }
 
   for (let r = useVirtual ? rowStart : 0; r <= (useVirtual ? rowEnd : rows - 1); r++) {
     const tr = document.createElement("tr")
+    tr.setAttribute("role", "row")
+    tr.setAttribute("aria-rowindex", String(r + 1))
     if (rowHeight) {
       tr.style.height = `${rowHeight}px`
     }
 
     if (useVirtual && leftOffset > 0) {
       const spacer = document.createElement("td")
+      spacer.setAttribute("role", "presentation")
+      spacer.setAttribute("aria-hidden", "true")
       spacer.style.width = `${leftOffset}px`
+      spacer.style.border = "none"
+      spacer.style.padding = "0"
       tr.appendChild(spacer)
     }
 
@@ -128,6 +157,10 @@ export function renderGrid(
       if (isEditing) {
         td.classList.add(classNames?.editingCell ?? "editing")
       }
+      td.setAttribute("role", "gridcell")
+      td.setAttribute("aria-colindex", String(c + 1))
+      td.setAttribute("aria-selected", isSelected ? "true" : "false")
+      td.id = getCellId(r, c, idPrefix)
       if (colWidth) {
         td.style.width = `${colWidth}px`
       }
@@ -136,14 +169,30 @@ export function renderGrid(
       }
 
       td.textContent = formatCell(cell, vm)
-      td.onclick = () => runtime.dispatch({ type: "SELECT_CELL", cell })
+      td.onclick = event => {
+        const mouseEvent = event as MouseEvent
+        if (mouseEvent.shiftKey) {
+          const current = runtime.getViewModel()
+          const anchor = current.selection.anchor ?? current.focus
+          if (!anchor) {
+            runtime.dispatch({ type: "SET_ANCHOR", cell })
+          }
+          runtime.dispatch({ type: "EXTEND_SELECTION", cell })
+          return
+        }
+        runtime.dispatch({ type: "SELECT_CELL", cell })
+      }
 
       tr.appendChild(td)
     }
 
     if (useVirtual && rightOffset > 0) {
       const spacer = document.createElement("td")
+      spacer.setAttribute("role", "presentation")
+      spacer.setAttribute("aria-hidden", "true")
       spacer.style.width = `${rightOffset}px`
+      spacer.style.border = "none"
+      spacer.style.padding = "0"
       tr.appendChild(spacer)
     }
 
@@ -152,12 +201,22 @@ export function renderGrid(
 
   if (useVirtual && bottomOffset > 0) {
     const spacerRow = document.createElement("tr")
+    spacerRow.setAttribute("role", "presentation")
     const spacerCell = document.createElement("td")
+    spacerCell.setAttribute("role", "presentation")
+    spacerCell.setAttribute("aria-hidden", "true")
     spacerCell.colSpan = columnSlots
     spacerCell.style.height = `${bottomOffset}px`
+    spacerCell.style.border = "none"
+    spacerCell.style.padding = "0"
     spacerRow.appendChild(spacerCell)
     table.appendChild(spacerRow)
   }
 
   container.appendChild(table)
+}
+
+function getCellId(row: number, col: number, idPrefix?: string): string {
+  const prefix = idPrefix ?? "busted-grid"
+  return `${prefix}-cell-${row}-${col}`
 }

@@ -3,12 +3,14 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  ElementRef,
   Input,
   OnChanges,
   OnDestroy,
   OnInit,
   SimpleChanges,
-  TemplateRef
+  TemplateRef,
+  ViewChild
 } from "@angular/core"
 import type {
   Cell,
@@ -63,20 +65,42 @@ export interface GridCellTemplateContext {
   template: `
     <div
       class="grid-scroller"
+      #scroller
       [style.height.px]="virtualization?.height"
       [style.width.px]="virtualization?.width"
       [style.overflow]="virtualization ? 'auto' : null"
       (scroll)="onScroll($event)"
     >
-      <table tabindex="0" [style.table-layout]="virtualization ? 'fixed' : null">
+      <table
+        tabindex="0"
+        role="grid"
+        [attr.aria-rowcount]="rows"
+        [attr.aria-colcount]="cols"
+        [attr.aria-multiselectable]="vm.selectionRange ? 'true' : 'false'"
+        [attr.aria-activedescendant]="activeDescendantId()"
+        [style.table-layout]="virtualization ? 'fixed' : null"
+      >
         <tbody>
-          <tr *ngIf="virtualization && topOffset > 0">
-            <td class="spacer" [attr.colspan]="columnSlots" [style.height.px]="topOffset"></td>
+          <tr *ngIf="virtualization && topOffset > 0" role="presentation">
+            <td
+              class="spacer"
+              role="presentation"
+              aria-hidden="true"
+              [attr.colspan]="columnSlots"
+              [style.height.px]="topOffset"
+            ></td>
           </tr>
-          <tr *ngFor="let r of rowIndexes; trackBy: trackRow" [style.height.px]="virtualization?.rowHeight">
+          <tr
+            *ngFor="let r of rowIndexes; trackBy: trackRow"
+            role="row"
+            [attr.aria-rowindex]="r + 1"
+            [style.height.px]="virtualization?.rowHeight"
+          >
             <td
               *ngIf="virtualization && leftOffset > 0"
               class="spacer"
+              role="presentation"
+              aria-hidden="true"
               [style.width.px]="leftOffset"
             ></td>
             <td
@@ -84,9 +108,13 @@ export interface GridCellTemplateContext {
               [attr.data-focused]="isFocused(r, c) ? '' : null"
               [attr.data-selected]="isSelected(r, c) ? '' : null"
               [attr.data-editing]="isEditing(r, c) ? '' : null"
+              role="gridcell"
+              [attr.aria-colindex]="c + 1"
+              [attr.aria-selected]="isSelected(r, c) ? 'true' : 'false'"
+              [attr.id]="cellId(r, c)"
               [style.width.px]="virtualization?.colWidth"
               [style.height.px]="virtualization?.rowHeight"
-              (click)="selectCell(r, c)"
+              (click)="onCellClick(r, c, $event)"
             >
               <ng-container *ngIf="cellTemplate; else defaultCell"
                 [ngTemplateOutlet]="cellTemplate"
@@ -99,11 +127,19 @@ export interface GridCellTemplateContext {
             <td
               *ngIf="virtualization && rightOffset > 0"
               class="spacer"
+              role="presentation"
+              aria-hidden="true"
               [style.width.px]="rightOffset"
             ></td>
           </tr>
-          <tr *ngIf="virtualization && bottomOffset > 0">
-            <td class="spacer" [attr.colspan]="columnSlots" [style.height.px]="bottomOffset"></td>
+          <tr *ngIf="virtualization && bottomOffset > 0" role="presentation">
+            <td
+              class="spacer"
+              role="presentation"
+              aria-hidden="true"
+              [attr.colspan]="columnSlots"
+              [style.height.px]="bottomOffset"
+            ></td>
           </tr>
         </tbody>
       </table>
@@ -135,6 +171,10 @@ export class GridViewComponent
   }
   rowIndexes: number[] = []
   colIndexes: number[] = []
+  readonly idPrefix = `busted-grid-${Math.random()
+    .toString(36)
+    .slice(2)}`
+  @ViewChild("scroller") scroller?: ElementRef<HTMLDivElement>
   rowStart = 0
   rowEnd = -1
   colStart = 0
@@ -146,6 +186,7 @@ export class GridViewComponent
   columnSlots = 0
   private scrollTop = 0
   private scrollLeft = 0
+  private lastFocusKey: string | null = null
 
   readonly trackRow = (_idx: number, row: number) => row
   readonly trackCol = (_idx: number, col: number) => col
@@ -179,8 +220,18 @@ export class GridViewComponent
     this.unsubscribe()
   }
 
-  selectCell(row: number, col: number): void {
-    this.runtime?.dispatch({ type: "SELECT_CELL", cell: { row, col } })
+  onCellClick(row: number, col: number, event: MouseEvent): void {
+    if (!this.runtime) return
+    const cell = { row, col }
+    if (event.shiftKey) {
+      const anchor = this.vm.selection.anchor ?? this.vm.focus
+      if (!anchor) {
+        this.runtime.dispatch({ type: "SET_ANCHOR", cell })
+      }
+      this.runtime.dispatch({ type: "EXTEND_SELECTION", cell })
+      return
+    }
+    this.runtime.dispatch({ type: "SELECT_CELL", cell })
   }
 
   isFocused(row: number, col: number): boolean {
@@ -207,6 +258,16 @@ export class GridViewComponent
       edit.cell.row === row &&
       edit.cell.col === col
     )
+  }
+
+  cellId(row: number, col: number): string {
+    return `${this.idPrefix}-cell-${row}-${col}`
+  }
+
+  activeDescendantId(): string | null {
+    const focus = this.vm.focus
+    if (!focus) return null
+    return this.cellId(focus.row, focus.col)
   }
 
   onScroll(event: Event): void {
@@ -243,6 +304,7 @@ export class GridViewComponent
     if (!this.runtime) return
     this.vm = this.runtime.getViewModel(this.getViewportConfig())
     this.updateVirtualization()
+    this.ensureFocusVisible()
     this.cdr.markForCheck()
   }
 
@@ -314,6 +376,49 @@ export class GridViewComponent
       (visibleCols > 0 ? visibleCols : 1) +
       (this.leftOffset > 0 ? 1 : 0) +
       (this.rightOffset > 0 ? 1 : 0)
+  }
+
+  private ensureFocusVisible(): void {
+    if (!this.virtualization) return
+    const focus = this.vm.focus
+    if (!focus) {
+      this.lastFocusKey = null
+      return
+    }
+    const focusKey = `${focus.row}:${focus.col}`
+    if (focusKey === this.lastFocusKey) return
+    this.lastFocusKey = focusKey
+    const scroller = this.scroller?.nativeElement
+    if (!scroller) return
+    const viewHeight = this.virtualization.height
+    const viewWidth = this.virtualization.width
+    const cellTop = focus.row * this.virtualization.rowHeight
+    const cellBottom = cellTop + this.virtualization.rowHeight
+    const cellLeft = focus.col * this.virtualization.colWidth
+    const cellRight = cellLeft + this.virtualization.colWidth
+    let nextTop = scroller.scrollTop
+    let nextLeft = scroller.scrollLeft
+
+    if (cellTop < nextTop) {
+      nextTop = cellTop
+    } else if (cellBottom > nextTop + viewHeight) {
+      nextTop = cellBottom - viewHeight
+    }
+
+    if (cellLeft < nextLeft) {
+      nextLeft = cellLeft
+    } else if (cellRight > nextLeft + viewWidth) {
+      nextLeft = cellRight - viewWidth
+    }
+
+    if (nextTop !== scroller.scrollTop) {
+      scroller.scrollTop = nextTop
+      this.scrollTop = nextTop
+    }
+    if (nextLeft !== scroller.scrollLeft) {
+      scroller.scrollLeft = nextLeft
+      this.scrollLeft = nextLeft
+    }
   }
 }
 
