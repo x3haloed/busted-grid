@@ -17,6 +17,11 @@
   },
   "peerDependencies": {
     "@busted-grid/runtime": "^0.1.0",
-    "@angular/core": ">=17"
+    "@angular/core": ">=17",
+    "@angular/common": ">=17"
+  },
+  "devDependencies": {
+    "@angular/core": ">=17",
+    "@angular/common": ">=17"
   }
 }

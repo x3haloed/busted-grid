@@ -1,2 +1,2 @@
-export * from "./attachDomGrid"
-export * from "./renderGrid"
+export * from "./attachDomGrid.js"
+export * from "./renderGrid.js"

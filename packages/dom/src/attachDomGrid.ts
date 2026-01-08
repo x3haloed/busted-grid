@@ -1,5 +1,5 @@
 import type { GridRuntime } from "@busted-grid/runtime"
-import { renderGrid, type DomGridOptions } from "./renderGrid"
+import { renderGrid, type DomGridOptions } from "./renderGrid.js"
 
 export interface DomGridHandle {
   rerender(): void

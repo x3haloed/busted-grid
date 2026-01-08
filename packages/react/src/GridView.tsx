@@ -1,6 +1,6 @@
 import * as React from "react"
 import type { Cell, GridRuntime } from "@busted-grid/runtime"
-import { useGrid } from "./useGrid"
+import { useGrid } from "./useGrid.js"
 
 export interface GridViewProps {
   runtime: GridRuntime

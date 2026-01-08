@@ -1,5 +1,5 @@
-import type { Cell } from "./types"
-import type { GridState } from "./state"
+import type { Cell } from "./types.js"
+import type { GridState } from "./state.js"
 
 export interface EditPolicy {
   canBeginEdit?(cell: Cell, state: GridState): boolean

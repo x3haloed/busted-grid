@@ -6,9 +6,12 @@
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "styles"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./styles/default.css"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },
@@ -18,5 +21,8 @@
   "peerDependencies": {
     "react": ">=18",
     "@busted-grid/runtime": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0"
   }
 }

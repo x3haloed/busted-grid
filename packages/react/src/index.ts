@@ -1,2 +1,2 @@
-export * from "./GridView"
-export * from "./useGrid"
+export * from "./GridView.js"
+export * from "./useGrid.js"

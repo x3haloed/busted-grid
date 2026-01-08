@@ -1,4 +1,4 @@
-import type { Cell } from "./types"
+import type { Cell } from "./types.js"
 
 export type GridCommand =
   | { type: "FOCUS_CELL"; cell: Cell }

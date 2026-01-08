@@ -1,18 +1,18 @@
-import type { GridCommand } from "./commands"
-import type { GridConstraints } from "./constraints"
-import type { DispatchResult } from "./dispatch"
-import { defaultEditPolicy, type EditPolicy } from "./editPolicy"
-import type { FocusPolicy } from "./focusPolicy"
-import type { CommandContext, GridCommandPlugin } from "./plugins"
-import type { GridState } from "./state"
+import type { GridCommand } from "./commands.js"
+import type { GridConstraints } from "./constraints.js"
+import type { DispatchResult } from "./dispatch.js"
+import { defaultEditPolicy, type EditPolicy } from "./editPolicy.js"
+import type { FocusPolicy } from "./focusPolicy.js"
+import type { CommandContext, GridCommandPlugin } from "./plugins.js"
+import type { GridState } from "./state.js"
 import type {
   EditState,
   GridViewModel,
   SelectionRange,
   SelectionState,
   ViewportConfig
-} from "./types"
-import { deriveViewport } from "./viewport"
+} from "./types.js"
+import { deriveViewport } from "./viewport.js"
 
 export interface GridRuntimeOptions {
   state: GridState

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Busted Grid DOM Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="../dom/styles/default.css" />
+  </head>
+  <body>
+    <header class="demo-header">
+      <div>
+        <h1>Hostile DOM Demo</h1>
+        <p>Async commit rejects negatives. Use Enter to edit, Shift+arrow to expand selection.</p>
+      </div>
+      <div class="demo-actions">
+        <button id="randomize" type="button">Randomize Data</button>
+        <button id="clear-errors" type="button">Clear Status</button>
+      </div>
+    </header>
+    <main class="demo-main">
+      <section class="demo-grid">
+        <div id="grid-container" class="grid-container"></div>
+      </section>
+      <aside class="demo-panel">
+        <div class="panel-card">
+          <h2>Status</h2>
+          <p id="status">Ready.</p>
+        </div>
+        <div class="panel-card">
+          <h2>Rules</h2>
+          <ul>
+            <li>Negative commits are rejected.</li>
+            <li>Values must be numbers.</li>
+            <li>Editing is async with a short delay.</li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

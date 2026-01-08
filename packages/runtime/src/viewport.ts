@@ -1,4 +1,4 @@
-import type { GridViewport, ViewportConfig, VisibleRange } from "./types"
+import type { GridViewport, ViewportConfig, VisibleRange } from "./types.js"
 
 const DEFAULT_OVERSCAN = 2
 
