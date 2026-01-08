@@ -28,11 +28,39 @@ export function attachKeyboard(
     const binding = bindings[event.key] ?? DEFAULT_BINDINGS[event.key]
     if (!binding) return
 
-    runtime.dispatch({
-      type: "MOVE_FOCUS",
-      dx: binding.dx,
-      dy: binding.dy
-    })
+    if (event.shiftKey) {
+      const vm = runtime.getViewModel()
+      const focus = vm.focus
+      if (!focus) {
+        if (preventDefault) {
+          event.preventDefault()
+        }
+        return
+      }
+      if (!vm.selection.anchor) {
+        runtime.dispatch({ type: "SET_ANCHOR", cell: focus })
+      }
+      const moveResult = runtime.dispatch({
+        type: "MOVE_FOCUS",
+        dx: binding.dx,
+        dy: binding.dy
+      })
+      if (moveResult.status === "applied") {
+        const nextFocus = runtime.getViewModel().focus
+        if (nextFocus) {
+          runtime.dispatch({
+            type: "EXTEND_SELECTION",
+            cell: nextFocus
+          })
+        }
+      }
+    } else {
+      runtime.dispatch({
+        type: "MOVE_FOCUS",
+        dx: binding.dx,
+        dy: binding.dy
+      })
+    }
 
     if (preventDefault) {
       event.preventDefault()

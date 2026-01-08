@@ -4,7 +4,7 @@ import type { DispatchResult } from "./dispatch"
 import type { FocusPolicy } from "./focusPolicy"
 import type { CommandContext, GridCommandPlugin } from "./plugins"
 import type { GridState } from "./state"
-import type { GridViewModel } from "./types"
+import type { GridViewModel, SelectionRange, SelectionState } from "./types"
 
 export interface GridRuntimeOptions {
   state: GridState
@@ -112,8 +112,78 @@ export class GridRuntime {
       }
 
       case "SELECT_CELL": {
-        this.state.selection = [command.cell]
-        changed = true
+        if (
+          this.constraints.canFocus(command.cell, this.state) &&
+          (this.constraints.canSelect?.(command.cell, this.state) ?? true)
+        ) {
+          this.state.focus = command.cell
+          this.state.selection = {
+            anchor: command.cell,
+            rangeEnd: command.cell
+          }
+          changed = true
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
+
+      case "SET_ANCHOR": {
+        if (
+          this.constraints.canFocus(command.cell, this.state) &&
+          (this.constraints.canSetAnchor?.(command.cell, this.state) ?? true)
+        ) {
+          this.state.focus = command.cell
+          this.state.selection = {
+            anchor: command.cell,
+            rangeEnd: command.cell
+          }
+          changed = true
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
+
+      case "EXTEND_SELECTION": {
+        const anchor = this.state.selection.anchor ?? this.state.focus
+        if (!anchor) {
+          ignored = true
+          reason = "no-anchor"
+          break
+        }
+        if (
+          this.constraints.canFocus(command.cell, this.state) &&
+          (this.constraints.canExtendSelection?.(
+            anchor,
+            command.cell,
+            this.state
+          ) ??
+            true)
+        ) {
+          this.state.focus = command.cell
+          this.state.selection = {
+            anchor,
+            rangeEnd: command.cell
+          }
+          changed = true
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
+
+      case "CLEAR_SELECTION": {
+        if (this.state.selection.anchor || this.state.selection.rangeEnd) {
+          this.state.selection = { anchor: null, rangeEnd: null }
+          changed = true
+        } else {
+          ignored = true
+          reason = "empty"
+        }
         break
       }
     }
@@ -136,7 +206,8 @@ export class GridRuntime {
   getViewModel(): GridViewModel {
     return {
       focus: this.state.focus,
-      selection: [...this.state.selection],
+      selection: { ...this.state.selection },
+      selectionRange: getSelectionRange(this.state.selection),
       columns: [...this.state.columns]
     }
   }
@@ -209,5 +280,17 @@ export class GridRuntime {
     for (const listener of this.listeners) {
       listener()
     }
+  }
+}
+
+function getSelectionRange(selection: SelectionState): SelectionRange | null {
+  if (!selection.anchor || !selection.rangeEnd) return null
+  const startRow = Math.min(selection.anchor.row, selection.rangeEnd.row)
+  const endRow = Math.max(selection.anchor.row, selection.rangeEnd.row)
+  const startCol = Math.min(selection.anchor.col, selection.rangeEnd.col)
+  const endCol = Math.max(selection.anchor.col, selection.rangeEnd.col)
+  return {
+    start: { row: startRow, col: startCol },
+    end: { row: endRow, col: endCol }
   }
 }

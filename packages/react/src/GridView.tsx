@@ -28,14 +28,22 @@ export function GridView({
               const cell = { row: r, col: c }
               const focused =
                 vm.focus?.row === r && vm.focus?.col === c
+              const range = vm.selectionRange
+              const selected =
+                !!range &&
+                r >= range.start.row &&
+                r <= range.end.row &&
+                c >= range.start.col &&
+                c <= range.end.col
 
               return (
                 <td
                   key={c}
                   data-focused={focused || undefined}
+                  data-selected={selected || undefined}
                   onClick={() =>
                     runtime.dispatch({
-                      type: "FOCUS_CELL",
+                      type: "SELECT_CELL",
                       cell
                     })
                   }

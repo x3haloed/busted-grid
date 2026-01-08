@@ -1,7 +1,7 @@
-import type { Cell, ColumnState } from "./types"
+import type { Cell, ColumnState, SelectionState } from "./types"
 
 export interface GridState {
   focus: Cell | null
-  selection: Cell[]
+  selection: SelectionState
   columns: ColumnState[]
 }

@@ -25,6 +25,27 @@ export interface GridCellTemplateContext {
   selector: "busted-grid-view",
   standalone: true,
   imports: [CommonModule],
+  styles: [
+    `
+      table {
+        border-collapse: collapse;
+      }
+
+      td {
+        border: 1px solid #ccc;
+        padding: 4px 8px;
+      }
+
+      td[data-focused] {
+        outline: 2px solid #3b82f6;
+        outline-offset: -2px;
+      }
+
+      td[data-selected] {
+        background: #dbeafe;
+      }
+    `
+  ],
   template: `
     <table tabindex="0">
       <tbody>
@@ -32,7 +53,8 @@ export interface GridCellTemplateContext {
           <td
             *ngFor="let c of colIndexes; trackBy: trackCol"
             [attr.data-focused]="isFocused(r, c) ? '' : null"
-            (click)="focusCell(r, c)"
+            [attr.data-selected]="isSelected(r, c) ? '' : null"
+            (click)="selectCell(r, c)"
           >
             <ng-container *ngIf="cellTemplate; else defaultCell"
               [ngTemplateOutlet]="cellTemplate"
@@ -56,7 +78,12 @@ export class GridViewComponent
   @Input({ required: true }) cols!: number
   @Input() cellTemplate?: TemplateRef<GridCellTemplateContext>
 
-  vm: GridViewModel = { focus: null, selection: [], columns: [] }
+  vm: GridViewModel = {
+    focus: null,
+    selection: { anchor: null, rangeEnd: null },
+    selectionRange: null,
+    columns: []
+  }
   rowIndexes: number[] = []
   colIndexes: number[] = []
 
@@ -89,13 +116,24 @@ export class GridViewComponent
     this.unsubscribe()
   }
 
-  focusCell(row: number, col: number): void {
-    this.runtime?.dispatch({ type: "FOCUS_CELL", cell: { row, col } })
+  selectCell(row: number, col: number): void {
+    this.runtime?.dispatch({ type: "SELECT_CELL", cell: { row, col } })
   }
 
   isFocused(row: number, col: number): boolean {
     const focus = this.vm.focus
     return !!focus && focus.row === row && focus.col === col
+  }
+
+  isSelected(row: number, col: number): boolean {
+    const range = this.vm.selectionRange
+    if (!range) return false
+    return (
+      row >= range.start.row &&
+      row <= range.end.row &&
+      col >= range.start.col &&
+      col <= range.end.col
+    )
   }
 
   cellContext(row: number, col: number): GridCellTemplateContext {

@@ -8,6 +8,7 @@ export interface DomGridClassNames {
   table?: string
   cell?: string
   focusedCell?: string
+  selectedCell?: string
 }
 
 export interface DomGridOptions {
@@ -27,6 +28,7 @@ export function renderGrid(
   const { rows, cols, classNames, cellFormatter } = options
   const formatCell = cellFormatter ?? defaultCellFormatter
   const vm = runtime.getViewModel()
+  const selectionRange = vm.selectionRange
 
   container.innerHTML = ""
 
@@ -43,14 +45,23 @@ export function renderGrid(
       const td = document.createElement("td")
       const cell = { row: r, col: c }
       const isFocused = vm.focus?.row === r && vm.focus?.col === c
+      const isSelected =
+        !!selectionRange &&
+        r >= selectionRange.start.row &&
+        r <= selectionRange.end.row &&
+        c >= selectionRange.start.col &&
+        c <= selectionRange.end.col
 
       if (classNames?.cell) td.classList.add(classNames.cell)
       if (isFocused) {
         td.classList.add(classNames?.focusedCell ?? "focused")
       }
+      if (isSelected) {
+        td.classList.add(classNames?.selectedCell ?? "selected")
+      }
 
       td.textContent = formatCell(cell, vm)
-      td.onclick = () => runtime.dispatch({ type: "FOCUS_CELL", cell })
+      td.onclick = () => runtime.dispatch({ type: "SELECT_CELL", cell })
 
       tr.appendChild(td)
     }
