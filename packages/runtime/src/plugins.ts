@@ -1,6 +1,7 @@
 import type { GridCommand } from "./commands"
 import type { GridConstraints } from "./constraints"
 import type { DispatchResult } from "./dispatch"
+import type { EditPolicy } from "./editPolicy"
 import type { FocusPolicy } from "./focusPolicy"
 import type { GridState } from "./state"
 
@@ -8,6 +9,7 @@ export interface CommandContext {
   state: GridState
   constraints: GridConstraints
   focusPolicy: FocusPolicy
+  editPolicy: EditPolicy
 }
 
 export type CommandValidationResult =

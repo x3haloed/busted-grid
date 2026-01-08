@@ -35,12 +35,19 @@ export function GridView({
                 r <= range.end.row &&
                 c >= range.start.col &&
                 c <= range.end.col
+              const edit = vm.edit
+              const editing =
+                edit.status === "editing" &&
+                !!edit.cell &&
+                edit.cell.row === r &&
+                edit.cell.col === c
 
               return (
                 <td
                   key={c}
                   data-focused={focused || undefined}
                   data-selected={selected || undefined}
+                  data-editing={editing || undefined}
                   onClick={() =>
                     runtime.dispatch({
                       type: "SELECT_CELL",

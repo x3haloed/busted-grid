@@ -15,3 +15,8 @@ td.focused {
 td.selected {
   background: #dbeafe;
 }
+
+td.editing {
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
+}

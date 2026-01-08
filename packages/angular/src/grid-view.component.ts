@@ -44,6 +44,11 @@ export interface GridCellTemplateContext {
       td[data-selected] {
         background: #dbeafe;
       }
+
+      td[data-editing] {
+        outline: 2px solid #f59e0b;
+        outline-offset: -2px;
+      }
     `
   ],
   template: `
@@ -54,6 +59,7 @@ export interface GridCellTemplateContext {
             *ngFor="let c of colIndexes; trackBy: trackCol"
             [attr.data-focused]="isFocused(r, c) ? '' : null"
             [attr.data-selected]="isSelected(r, c) ? '' : null"
+            [attr.data-editing]="isEditing(r, c) ? '' : null"
             (click)="selectCell(r, c)"
           >
             <ng-container *ngIf="cellTemplate; else defaultCell"
@@ -82,6 +88,7 @@ export class GridViewComponent
     focus: null,
     selection: { anchor: null, rangeEnd: null },
     selectionRange: null,
+    edit: { status: "idle", cell: null },
     columns: []
   }
   rowIndexes: number[] = []
@@ -133,6 +140,16 @@ export class GridViewComponent
       row <= range.end.row &&
       col >= range.start.col &&
       col <= range.end.col
+    )
+  }
+
+  isEditing(row: number, col: number): boolean {
+    const edit = this.vm.edit
+    return (
+      edit.status === "editing" &&
+      !!edit.cell &&
+      edit.cell.row === row &&
+      edit.cell.col === col
     )
   }
 

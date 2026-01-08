@@ -37,6 +37,13 @@ import { attachDomGrid } from "@busted-grid/dom"
 import { attachKeyboard } from "@busted-grid/keyboard"
 import "@busted-grid/dom/styles/default.css"
 
+const state = {
+  focus: null,
+  selection: { anchor: null, rangeEnd: null },
+  edit: { status: "idle", cell: null },
+  columns: []
+}
+
 const runtime = new GridRuntime({ state, constraints, focusPolicy })
 
 const domHandle = attachDomGrid(containerElement, runtime, {
@@ -57,6 +64,13 @@ domHandle.destroy()
 import { GridRuntime } from "@busted-grid/runtime"
 import { GridView } from "@busted-grid/react"
 
+const state = {
+  focus: null,
+  selection: { anchor: null, rangeEnd: null },
+  edit: { status: "idle", cell: null },
+  columns: []
+}
+
 const runtime = new GridRuntime({ state, constraints, focusPolicy })
 
 export function Example() {
@@ -72,6 +86,13 @@ The React bindings rely on `useSyncExternalStore`, so multiple components can ca
 import { Component } from "@angular/core"
 import { GridRuntime } from "@busted-grid/runtime"
 import { GridViewComponent } from "@busted-grid/angular"
+
+const state = {
+  focus: null,
+  selection: { anchor: null, rangeEnd: null },
+  edit: { status: "idle", cell: null },
+  columns: []
+}
 
 @Component({
   selector: "app-grid",

@@ -7,3 +7,6 @@ export type GridCommand =
   | { type: "SET_ANCHOR"; cell: Cell }
   | { type: "EXTEND_SELECTION"; cell: Cell }
   | { type: "CLEAR_SELECTION" }
+  | { type: "BEGIN_EDIT"; cell: Cell }
+  | { type: "COMMIT_EDIT"; value: unknown }
+  | { type: "CANCEL_EDIT" }

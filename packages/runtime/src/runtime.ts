@@ -1,15 +1,22 @@
 import type { GridCommand } from "./commands"
 import type { GridConstraints } from "./constraints"
 import type { DispatchResult } from "./dispatch"
+import { defaultEditPolicy, type EditPolicy } from "./editPolicy"
 import type { FocusPolicy } from "./focusPolicy"
 import type { CommandContext, GridCommandPlugin } from "./plugins"
 import type { GridState } from "./state"
-import type { GridViewModel, SelectionRange, SelectionState } from "./types"
+import type {
+  EditState,
+  GridViewModel,
+  SelectionRange,
+  SelectionState
+} from "./types"
 
 export interface GridRuntimeOptions {
   state: GridState
   constraints: GridConstraints
   focusPolicy: FocusPolicy
+  editPolicy?: EditPolicy
   plugins?: GridCommandPlugin[]
 }
 
@@ -17,6 +24,7 @@ export class GridRuntime {
   private state: GridState
   private constraints: GridConstraints
   private focusPolicy: FocusPolicy
+  private editPolicy: EditPolicy
   private plugins: GridCommandPlugin[]
   private listeners = new Set<() => void>()
 
@@ -24,6 +32,7 @@ export class GridRuntime {
     this.state = options.state
     this.constraints = options.constraints
     this.focusPolicy = options.focusPolicy
+    this.editPolicy = options.editPolicy ?? defaultEditPolicy
     this.plugins = options.plugins ?? []
   }
 
@@ -186,6 +195,125 @@ export class GridRuntime {
         }
         break
       }
+
+      case "BEGIN_EDIT": {
+        if (this.state.edit.status === "committing") {
+          blocked = true
+          reason = "committing"
+          break
+        }
+        if (
+          this.constraints.canFocus(command.cell, this.state) &&
+          (this.constraints.canBeginEdit?.(command.cell, this.state) ??
+            true) &&
+          (this.editPolicy.canBeginEdit?.(command.cell, this.state) ??
+            true)
+        ) {
+          this.state.focus = command.cell
+          this.state.selection = {
+            anchor: command.cell,
+            rangeEnd: command.cell
+          }
+          this.state.edit = {
+            status: "editing",
+            cell: command.cell
+          }
+          changed = true
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
+
+      case "COMMIT_EDIT": {
+        if (this.state.edit.status !== "editing" || !this.state.edit.cell) {
+          ignored = true
+          reason = "not-editing"
+          break
+        }
+        const cell = this.state.edit.cell
+        if (
+          (this.constraints.canCommitEdit?.(
+            cell,
+            command.value,
+            this.state
+          ) ??
+            true) &&
+          (this.editPolicy.canCommitEdit?.(
+            cell,
+            command.value,
+            this.state
+          ) ??
+            true)
+        ) {
+          this.state.edit = {
+            status: "committing",
+            cell,
+            value: command.value
+          }
+          changed = true
+          const result = this.editPolicy.commitEdit?.(
+            cell,
+            command.value,
+            this.state
+          )
+          if (result && isPromise(result)) {
+            result
+              .then(() => {
+                this.editPolicy.onCommitSuccess?.(
+                  cell,
+                  command.value,
+                  this.state
+                )
+                this.state.edit = idleEditState()
+                this.notify()
+              })
+              .catch(error => {
+                this.editPolicy.onCommitError?.(
+                  cell,
+                  command.value,
+                  error,
+                  this.state
+                )
+                this.state.edit = {
+                  status: "error",
+                  cell,
+                  value: command.value,
+                  error
+                }
+                this.notify()
+              })
+          } else {
+            this.editPolicy.onCommitSuccess?.(
+              cell,
+              command.value,
+              this.state
+            )
+            this.state.edit = idleEditState()
+          }
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
+
+      case "CANCEL_EDIT": {
+        if (this.state.edit.status === "committing") {
+          blocked = true
+          reason = "committing"
+          break
+        }
+        if (this.state.edit.status === "editing") {
+          this.state.edit = idleEditState()
+          changed = true
+        } else {
+          ignored = true
+          reason = "not-editing"
+        }
+        break
+      }
     }
 
     if (changed) {
@@ -208,6 +336,7 @@ export class GridRuntime {
       focus: this.state.focus,
       selection: { ...this.state.selection },
       selectionRange: getSelectionRange(this.state.selection),
+      edit: { ...this.state.edit },
       columns: [...this.state.columns]
     }
   }
@@ -220,11 +349,16 @@ export class GridRuntime {
     this.constraints = constraints
   }
 
+  replaceEditPolicy(policy: EditPolicy): void {
+    this.editPolicy = policy
+  }
+
   private createContext(): CommandContext {
     return {
       state: this.state,
       constraints: this.constraints,
-      focusPolicy: this.focusPolicy
+      focusPolicy: this.focusPolicy,
+      editPolicy: this.editPolicy
     }
   }
 
@@ -293,4 +427,17 @@ function getSelectionRange(selection: SelectionState): SelectionRange | null {
     start: { row: startRow, col: startCol },
     end: { row: endRow, col: endCol }
   }
+}
+
+function idleEditState(): EditState {
+  return { status: "idle", cell: null }
+}
+
+function isPromise(value: unknown): value is Promise<unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "then" in value &&
+    typeof (value as Promise<unknown>).then === "function"
+  )
 }

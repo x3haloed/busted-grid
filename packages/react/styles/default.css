@@ -15,3 +15,8 @@ td[data-focused] {
 td[data-selected] {
   background: #dbeafe;
 }
+
+td[data-editing] {
+  outline: 2px solid #f59e0b;
+  outline-offset: -2px;
+}

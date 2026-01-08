@@ -25,6 +25,33 @@ export function attachKeyboard(
   const { preventDefault = true, bindings = {} } = options
 
   const listener = (event: KeyboardEvent) => {
+    if (event.key === "Enter") {
+      const vm = runtime.getViewModel()
+      if (vm.edit.status === "editing") {
+        runtime.dispatch({
+          type: "COMMIT_EDIT",
+          value: vm.edit.value
+        })
+      } else if (vm.focus) {
+        runtime.dispatch({
+          type: "BEGIN_EDIT",
+          cell: vm.focus
+        })
+      }
+      if (preventDefault) {
+        event.preventDefault()
+      }
+      return
+    }
+
+    if (event.key === "Escape") {
+      runtime.dispatch({ type: "CANCEL_EDIT" })
+      if (preventDefault) {
+        event.preventDefault()
+      }
+      return
+    }
+
     const binding = bindings[event.key] ?? DEFAULT_BINDINGS[event.key]
     if (!binding) return
 

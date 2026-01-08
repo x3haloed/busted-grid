@@ -1,6 +1,7 @@
 export * from "./commands"
 export * from "./constraints"
 export * from "./dispatch"
+export * from "./editPolicy"
 export * from "./focusPolicy"
 export * from "./plugins"
 export * from "./runtime"

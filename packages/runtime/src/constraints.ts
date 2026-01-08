@@ -7,4 +7,6 @@ export interface GridConstraints {
   canSelect?(cell: Cell, state: GridState): boolean
   canSetAnchor?(cell: Cell, state: GridState): boolean
   canExtendSelection?(anchor: Cell, to: Cell, state: GridState): boolean
+  canBeginEdit?(cell: Cell, state: GridState): boolean
+  canCommitEdit?(cell: Cell, value: unknown, state: GridState): boolean
 }

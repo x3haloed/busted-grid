@@ -9,6 +9,7 @@ export interface DomGridClassNames {
   cell?: string
   focusedCell?: string
   selectedCell?: string
+  editingCell?: string
 }
 
 export interface DomGridOptions {
@@ -29,6 +30,7 @@ export function renderGrid(
   const formatCell = cellFormatter ?? defaultCellFormatter
   const vm = runtime.getViewModel()
   const selectionRange = vm.selectionRange
+  const edit = vm.edit
 
   container.innerHTML = ""
 
@@ -51,6 +53,11 @@ export function renderGrid(
         r <= selectionRange.end.row &&
         c >= selectionRange.start.col &&
         c <= selectionRange.end.col
+      const isEditing =
+        edit.status === "editing" &&
+        !!edit.cell &&
+        edit.cell.row === r &&
+        edit.cell.col === c
 
       if (classNames?.cell) td.classList.add(classNames.cell)
       if (isFocused) {
@@ -58,6 +65,9 @@ export function renderGrid(
       }
       if (isSelected) {
         td.classList.add(classNames?.selectedCell ?? "selected")
+      }
+      if (isEditing) {
+        td.classList.add(classNames?.editingCell ?? "editing")
       }
 
       td.textContent = formatCell(cell, vm)
