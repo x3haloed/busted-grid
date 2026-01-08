@@ -118,6 +118,40 @@ export class GridExampleComponent {
 
 The Angular adapter ships as a standalone component, so you can import it directly into Routed/feature components without touching NgModules. The optional `cellTemplate` input lets you supply your own `ng-template` for custom cell output.
 
+### Virtualization (optional)
+
+DOM:
+
+```ts
+attachDomGrid(containerElement, runtime, {
+  rows: 10000,
+  cols: 1000,
+  virtualization: { rowHeight: 24, colWidth: 120, overscan: 2 }
+})
+```
+
+React:
+
+```tsx
+<GridView
+  runtime={runtime}
+  rows={10000}
+  cols={1000}
+  virtualization={{ rowHeight: 24, colWidth: 120, width: 800, height: 400 }}
+/>
+```
+
+Angular:
+
+```html
+<busted-grid-view
+  [runtime]="runtime"
+  [rows]="10000"
+  [cols]="1000"
+  [virtualization]="{ rowHeight: 24, colWidth: 120, width: 800, height: 400 }"
+></busted-grid-view>
+```
+
 ## Developing in this repo
 
 ```bash

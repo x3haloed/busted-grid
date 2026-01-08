@@ -9,8 +9,10 @@ import type {
   EditState,
   GridViewModel,
   SelectionRange,
-  SelectionState
+  SelectionState,
+  ViewportConfig
 } from "./types"
+import { deriveViewport } from "./viewport"
 
 export interface GridRuntimeOptions {
   state: GridState
@@ -331,13 +333,14 @@ export class GridRuntime {
     return { status: "ignored" }
   }
 
-  getViewModel(): GridViewModel {
+  getViewModel(viewport?: ViewportConfig): GridViewModel {
     return {
       focus: this.state.focus,
       selection: { ...this.state.selection },
       selectionRange: getSelectionRange(this.state.selection),
       edit: { ...this.state.edit },
-      columns: [...this.state.columns]
+      columns: [...this.state.columns],
+      viewport: viewport ? deriveViewport(viewport) : undefined
     }
   }
 

@@ -27,10 +27,34 @@ export interface ColumnState {
   locked: boolean
 }
 
+export interface VisibleRange {
+  start: number
+  end: number
+}
+
+export interface ViewportConfig {
+  rows: number
+  cols: number
+  rowHeight: number
+  colWidth: number
+  viewportHeight: number
+  viewportWidth: number
+  scrollTop: number
+  scrollLeft: number
+  overscan?: number
+}
+
+export interface GridViewport extends ViewportConfig {
+  rowRange: VisibleRange
+  colRange: VisibleRange
+  overscan: number
+}
+
 export interface GridViewModel {
   focus: Cell | null
   selection: SelectionState
   selectionRange: SelectionRange | null
   edit: EditState
   columns: ColumnState[]
+  viewport?: GridViewport
 }
