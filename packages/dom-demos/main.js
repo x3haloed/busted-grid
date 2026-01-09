@@ -46,7 +46,7 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-let requestRender = () => {}
+let requestRender = () => { }
 
 const editPolicy = {
   ...defaultEditPolicy,
@@ -106,17 +106,29 @@ const runtime = new GridRuntime({
 
 function formatCell(cell, vm) {
   const value = getValue(cell)
-  const editing =
-    vm.edit.status === "editing" &&
+  const isEditing =
     vm.edit.cell &&
     vm.edit.cell.row === cell.row &&
     vm.edit.cell.col === cell.col
-  return editing ? `${value} (edit)` : String(value)
+
+  if (!isEditing) return String(value)
+
+  switch (vm.edit.status) {
+    case "editing":
+      return `${value} (edit)`
+    case "committing":
+      return `${value} (committing)`
+    case "error":
+      return `${value} (error)`
+    default:
+      return String(value)
+  }
 }
 
 const domHandle = attachDomGrid(container, runtime, {
   rows,
   cols,
+  idPrefix: "demo-grid",
   virtualization: {
     rowHeight: 28,
     colWidth: 100,
@@ -127,29 +139,95 @@ const domHandle = attachDomGrid(container, runtime, {
 
 requestRender = () => domHandle.rerender()
 
+class CellEditor {
+  constructor() {
+    this.element = document.createElement("input")
+    this.element.className = "cell-editor"
+    this.element.style.display = "none"
+    this.element.style.position = "absolute"
+    document.body.appendChild(this.element)
+
+    this.element.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        this.commit()
+      } else if (event.key === "Escape") {
+        this.cancel()
+      }
+    })
+
+    this.element.addEventListener("blur", () => {
+      if (this.element.style.display !== "none") {
+        this.commit()
+      }
+    })
+  }
+
+  show(cell, value) {
+    const td = document.getElementById(`demo-grid-cell-${cell.row}-${cell.col}`)
+    if (!td) return
+
+    const rect = td.getBoundingClientRect()
+    this.element.value = String(value)
+    this.element.style.top = `${rect.top + window.scrollY}px`
+    this.element.style.left = `${rect.left + window.scrollX}px`
+    this.element.style.width = `${rect.width}px`
+    this.element.style.height = `${rect.height}px`
+    this.element.style.display = "block"
+    this.element.focus()
+    this.element.select()
+  }
+
+  hide() {
+    this.element.style.display = "none"
+  }
+
+  commit() {
+    const value = Number(this.element.value)
+    this.hide()
+    runtime.dispatch({ type: "COMMIT_EDIT", value })
+    // Return focus to grid table
+    container.querySelector("table")?.focus()
+  }
+
+  cancel() {
+    this.hide()
+    runtime.dispatch({ type: "CANCEL_EDIT" })
+    // Return focus to grid table
+    container.querySelector("table")?.focus()
+  }
+}
+
+const cellEditor = new CellEditor()
+
+// Hook into runtime state changes to show/hide editor
+runtime.subscribe(() => {
+  const vm = runtime.getViewModel()
+  if (vm.edit.status === "editing" && vm.edit.cell) {
+    cellEditor.show(vm.edit.cell, getValue(vm.edit.cell))
+  } else {
+    cellEditor.hide()
+  }
+})
+
 attachKeyboard(container, runtime)
+
+// Ensure grid gets focus when clicked
+container.addEventListener("mousedown", () => {
+  // Use a short delay to allow the click to update state before focusing
+  setTimeout(() => {
+    container.querySelector("table")?.focus()
+  }, 0)
+})
 
 container.addEventListener(
   "keydown",
   event => {
     if (event.key !== "Enter") return
-    event.preventDefault()
-    event.stopPropagation()
+
     const vm = runtime.getViewModel()
-    const targetCell = vm.focus ?? vm.selection.anchor
-    if (!targetCell) return
-    runtime.dispatch({ type: "BEGIN_EDIT", cell: targetCell })
-    const currentValue = getValue(targetCell)
-    const raw = window.prompt(
-      `Edit ${targetCell.row},${targetCell.col}`,
-      String(currentValue)
-    )
-    if (raw === null) {
-      runtime.dispatch({ type: "CANCEL_EDIT" })
-      return
-    }
-    const nextValue = Number(raw)
-    runtime.dispatch({ type: "COMMIT_EDIT", value: nextValue })
+    if (vm.edit.status !== "idle") return
+
+    // Just let the library handle BEGIN_EDIT, our subscriber will show the UI
   },
   true
 )
