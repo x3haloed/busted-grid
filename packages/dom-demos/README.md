@@ -24,3 +24,12 @@ Open `http://localhost:5174`.
 - Enter begins edit on the focused cell and prompts for a new value.
 - Negative values are rejected on commit.
 - Non-numeric input is rejected.
+- Locked columns are read-only (toggle in the header controls).
+- Selection guard cancels range expansion via a command hook.
+
+### Architecture notes
+
+- Constraints: `canBeginEdit` + `canCommitEdit` enforce locked columns.
+- Policy: default focus policy with async edit policy override.
+- Command interception: `EXTEND_SELECTION` is cancelled when selection guard is on.
+- Adapter: DOM renderer stays thin; header controls live in the demo.

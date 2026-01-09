@@ -7,18 +7,27 @@ import { attachKeyboard } from "../keyboard/dist/index.js"
 
 const rows = 200
 const cols = 40
+const columnWidth = 100
+const rowHeight = 28
 const container = document.getElementById("grid-container")
+const header = document.getElementById("grid-header")
+const headerTrack = document.getElementById("grid-header-track")
 const statusEl = document.getElementById("status")
+const commandLog = document.getElementById("command-log")
 const randomizeButton = document.getElementById("randomize")
 const clearStatusButton = document.getElementById("clear-errors")
+const selectionGuardButton = document.getElementById("toggle-selection-guard")
+
+const lockedColumns = new Set([0, 1])
+const selectionGuard = { enabled: false }
 
 const state = {
   focus: null,
   selection: { anchor: null, rangeEnd: null },
   edit: { status: "idle", cell: null },
-  columns: Array.from({ length: cols }, () => ({
-    width: 100,
-    locked: false
+  columns: Array.from({ length: cols }, (_, index) => ({
+    width: columnWidth,
+    locked: lockedColumns.has(index)
   }))
 }
 
@@ -42,16 +51,60 @@ function setStatus(message, tone = "info") {
     tone === "error" ? "#b91c1c" : "#0f172a"
 }
 
+function logCommand(command, result) {
+  if (!commandLog) return
+  const entry = document.createElement("li")
+  const reason = result.reason ? ` (${result.reason})` : ""
+  entry.textContent = `${command.type}: ${result.status}${reason}`
+  if (commandLog.firstChild) {
+    commandLog.insertBefore(entry, commandLog.firstChild)
+  } else {
+    commandLog.appendChild(entry)
+  }
+  while (commandLog.children.length > 6) {
+    commandLog.removeChild(commandLog.lastChild)
+  }
+}
+
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 let requestRender = () => { }
 
+function columnLabel(index) {
+  let label = ""
+  let value = index
+  while (value >= 0) {
+    label = String.fromCharCode(65 + (value % 26)) + label
+    value = Math.floor(value / 26) - 1
+  }
+  return label
+}
+
+function isLockedColumn(col) {
+  return lockedColumns.has(col)
+}
+
+function setColumnLocked(col, locked) {
+  if (locked) {
+    lockedColumns.add(col)
+  } else {
+    lockedColumns.delete(col)
+  }
+  const column = state.columns[col]
+  if (column) {
+    column.locked = locked
+  }
+}
+
 const editPolicy = {
   ...defaultEditPolicy,
   commitEdit: async (cell, value) => {
     await delay(300)
+    if (isLockedColumn(cell.col)) {
+      throw new Error(`Column ${columnLabel(cell.col)} is locked.`)
+    }
     if (typeof value !== "number" || Number.isNaN(value)) {
       throw new Error("Value must be a number.")
     }
@@ -88,6 +141,12 @@ const constraints = {
       to.col >= 0 &&
       to.col < cols
     )
+  },
+  canBeginEdit(cell) {
+    return !isLockedColumn(cell.col)
+  },
+  canCommitEdit(cell) {
+    return !isLockedColumn(cell.col)
   }
 }
 
@@ -97,31 +156,62 @@ const focusPolicy = {
   }
 }
 
+const demoPlugin = {
+  name: "demo-guard",
+  beforeCommand(command) {
+    if (!selectionGuard.enabled) return
+    if (command.type === "EXTEND_SELECTION") {
+      return { cancel: true, reason: "selection-guard" }
+    }
+  },
+  afterCommand(command, _context, result) {
+    logCommand(command, result)
+    if (result.status === "cancelled") {
+      if (result.reason === "selection-guard") {
+        setStatus("Selection guard blocked range expansion.", "error")
+        return
+      }
+    }
+    if (result.status === "blocked") {
+      if (command.type === "BEGIN_EDIT" && "cell" in command) {
+        setStatus(
+          `Column ${columnLabel(command.cell.col)} is locked.`,
+          "error"
+        )
+        return
+      }
+      setStatus(`Command blocked: ${command.type}.`, "error")
+    }
+  }
+}
+
 const runtime = new GridRuntime({
   state,
   constraints,
   focusPolicy,
-  editPolicy
+  editPolicy,
+  plugins: [demoPlugin]
 })
 
 function formatCell(cell, vm) {
   const value = getValue(cell)
+  const lockedTag = isLockedColumn(cell.col) ? " [RO]" : ""
   const isEditing =
     vm.edit.cell &&
     vm.edit.cell.row === cell.row &&
     vm.edit.cell.col === cell.col
 
-  if (!isEditing) return String(value)
+  if (!isEditing) return `${value}${lockedTag}`
 
   switch (vm.edit.status) {
     case "editing":
-      return `${value} (edit)`
+      return `${value}${lockedTag} (edit)`
     case "committing":
-      return `${value} (committing)`
+      return `${value}${lockedTag} (committing)`
     case "error":
-      return `${value} (error)`
+      return `${value}${lockedTag} (error)`
     default:
-      return String(value)
+      return `${value}${lockedTag}`
   }
 }
 
@@ -130,14 +220,56 @@ const domHandle = attachDomGrid(container, runtime, {
   cols,
   idPrefix: "demo-grid",
   virtualization: {
-    rowHeight: 28,
-    colWidth: 100,
+    rowHeight,
+    colWidth: columnWidth,
     overscan: 2
   },
   cellFormatter: formatCell
 })
 
-requestRender = () => domHandle.rerender()
+function renderHeader() {
+  if (!headerTrack) return
+  headerTrack.innerHTML = ""
+  headerTrack.style.width = `${cols * columnWidth}px`
+  for (let c = 0; c < cols; c++) {
+    const cell = document.createElement("div")
+    cell.className = "header-cell"
+    cell.dataset.col = String(c)
+    cell.dataset.locked = isLockedColumn(c) ? "true" : "false"
+
+    const label = document.createElement("span")
+    label.className = "header-label"
+    label.textContent = `Col ${columnLabel(c)}`
+
+    const lockButton = document.createElement("button")
+    lockButton.type = "button"
+    lockButton.textContent = isLockedColumn(c) ? "Unlock" : "Lock"
+    lockButton.addEventListener("click", () => {
+      const nextLocked = !isLockedColumn(c)
+      setColumnLocked(c, nextLocked)
+      setStatus(
+        nextLocked
+          ? `Locked column ${columnLabel(c)}.`
+          : `Unlocked column ${columnLabel(c)}.`
+      )
+      requestRender()
+    })
+
+    cell.append(label, lockButton)
+    headerTrack.appendChild(cell)
+  }
+}
+
+function syncHeaderScroll() {
+  if (!header) return
+  header.scrollLeft = container.scrollLeft
+}
+
+requestRender = () => {
+  domHandle.rerender()
+  renderHeader()
+}
+renderHeader()
 
 class CellEditor {
   constructor() {
@@ -210,6 +342,7 @@ runtime.subscribe(() => {
 })
 
 attachKeyboard(container, runtime)
+container.addEventListener("scroll", syncHeaderScroll)
 
 // Ensure grid gets focus when clicked
 container.addEventListener("mousedown", () => {
@@ -244,6 +377,18 @@ randomizeButton?.addEventListener("click", () => {
 
 clearStatusButton?.addEventListener("click", () => {
   setStatus("Ready.")
+})
+
+selectionGuardButton?.addEventListener("click", () => {
+  selectionGuard.enabled = !selectionGuard.enabled
+  selectionGuardButton.textContent = selectionGuard.enabled
+    ? "Selection Guard: On"
+    : "Selection Guard: Off"
+  setStatus(
+    selectionGuard.enabled
+      ? "Selection guard enabled."
+      : "Selection guard disabled."
+  )
 })
 
 setStatus("Ready.")

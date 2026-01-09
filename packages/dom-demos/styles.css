@@ -21,6 +21,7 @@
 .demo-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .demo-actions button {
@@ -40,6 +41,64 @@
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: 24px;
   padding: 24px;
+}
+
+.demo-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.grid-header {
+  border: 1px solid #cbd5f5;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.grid-header-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100px;
+}
+
+.header-cell {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 6px;
+  padding: 8px;
+  border-right: 1px solid #e2e8f0;
+  min-height: 56px;
+  font-size: 12px;
+}
+
+.header-cell:last-child {
+  border-right: none;
+}
+
+.header-label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.header-cell button {
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.header-cell button:hover {
+  background: #f1f5f9;
+}
+
+.header-cell[data-locked="true"] {
+  background: #fef3c7;
+}
+
+.header-cell[data-locked="true"] .header-label {
+  color: #92400e;
 }
 
 .grid-container {
@@ -78,6 +137,15 @@
 #status {
   color: #0f172a;
   font-weight: 500;
+}
+
+.command-log {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {

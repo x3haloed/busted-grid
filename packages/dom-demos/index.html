@@ -11,15 +11,21 @@
     <header class="demo-header">
       <div>
         <h1>Hostile DOM Demo</h1>
-        <p>Async commit rejects negatives. Use Enter to edit, Shift+arrow to expand selection.</p>
+        <p>Async edits, locked columns, command interception, and range selection stress the runtime.</p>
       </div>
       <div class="demo-actions">
         <button id="randomize" type="button">Randomize Data</button>
         <button id="clear-errors" type="button">Clear Status</button>
+        <button id="toggle-selection-guard" type="button">
+          Selection Guard: Off
+        </button>
       </div>
     </header>
     <main class="demo-main">
       <section class="demo-grid">
+        <div class="grid-header" id="grid-header">
+          <div class="grid-header-track" id="grid-header-track"></div>
+        </div>
         <div id="grid-container" class="grid-container" tabindex="0"></div>
       </section>
       <aside class="demo-panel">
@@ -33,7 +39,13 @@
             <li>Negative commits are rejected.</li>
             <li>Values must be numbers.</li>
             <li>Editing is async with a short delay.</li>
+            <li>Locked columns are read-only.</li>
+            <li>Selection guard cancels range expansion.</li>
           </ul>
+        </div>
+        <div class="panel-card">
+          <h2>Command Log</h2>
+          <ol id="command-log" class="command-log"></ol>
         </div>
       </aside>
     </main>
