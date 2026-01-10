@@ -37,6 +37,13 @@ export interface GridCellTemplateContext {
         border-collapse: collapse;
       }
 
+      table.sticky-header thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #fff;
+      }
+
       th,
       td {
         border: 1px solid #ccc;
@@ -121,6 +128,7 @@ export interface GridCellTemplateContext {
         [attr.aria-colcount]="cols"
         [attr.aria-multiselectable]="vm.selectionRange ? 'true' : 'false'"
         [attr.aria-activedescendant]="activeDescendantId()"
+        [class.sticky-header]="stickyHeader"
       >
         <colgroup>
           <col
@@ -230,6 +238,7 @@ export class GridViewComponent
   @Input({ required: true }) rows!: number
   @Input({ required: true }) cols!: number
   @Input() cellTemplate?: TemplateRef<GridCellTemplateContext>
+  @Input() stickyHeader = false
   @Input() virtualization?: {
     rowHeight: number
     width: number

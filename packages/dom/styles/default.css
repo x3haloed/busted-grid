@@ -2,6 +2,13 @@ table {
   border-collapse: collapse;
 }
 
+.busted-grid-sticky-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+}
+
 th,
 td {
   border: 1px solid #ccc;

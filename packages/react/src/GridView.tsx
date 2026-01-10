@@ -14,6 +14,7 @@ export interface GridViewProps {
   scrollRef?: React.RefObject<HTMLDivElement>
   renderCell?: (cell: Cell) => React.ReactNode
   renderHeaderCell?: (header: ColumnHeaderState) => React.ReactNode
+  stickyHeader?: boolean
   virtualization?: {
     rowHeight: number
     width: number
@@ -32,6 +33,7 @@ export function GridView({
   scrollRef: scrollRefProp,
   renderCell = defaultRenderer,
   renderHeaderCell,
+  stickyHeader = false,
   virtualization
 }: GridViewProps): JSX.Element {
   const idPrefix = idPrefixProp ?? React.useId()
@@ -110,6 +112,7 @@ export function GridView({
       aria-colcount={cols}
       aria-multiselectable={vm.selectionRange ? "true" : "false"}
       aria-activedescendant={activeDescendant}
+      className={stickyHeader ? "busted-grid-sticky-header" : undefined}
     >
       <colgroup>
         {colWidths.map((width, index) => (

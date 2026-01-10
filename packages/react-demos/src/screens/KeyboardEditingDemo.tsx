@@ -239,6 +239,7 @@ function KeyboardEditingView({
               cols={cols}
               idPrefix="react-demo"
               scrollRef={gridScrollRef}
+              stickyHeader
               virtualization={virtualization}
               renderCell={cell => {
                 const value = getCellValue(cell)

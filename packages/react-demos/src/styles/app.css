@@ -417,11 +417,15 @@ a {
 table[role="grid"] {
   border-collapse: separate;
   border-spacing: 0;
-  overflow: hidden;
   border-radius: 16px;
   border: 1px solid rgba(148, 163, 184, 0.22);
   background: rgba(2, 6, 23, 0.7);
 }
+
+.busted-grid-sticky-header thead th {
+  background: #0f172a !important;
+}
+
 
 td[role="gridcell"] {
   padding: 6px 10px;

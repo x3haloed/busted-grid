@@ -22,6 +22,7 @@ export interface DomGridOptions {
     header: ColumnHeaderState,
     vm: GridViewModel
   ) => string | HTMLElement
+  stickyHeader?: boolean
   virtualization?: {
     rowHeight: number
     overscan?: number
@@ -42,6 +43,7 @@ export function renderGrid(
     classNames,
     cellFormatter,
     headerFormatter,
+    stickyHeader,
     virtualization,
     idPrefix
   } =
@@ -85,6 +87,9 @@ export function renderGrid(
   }
   if (classNames?.table) {
     table.classList.add(classNames.table)
+  }
+  if (stickyHeader) {
+    table.classList.add("busted-grid-sticky-header")
   }
 
   const rowStart = Math.max(0, rowRange.start)

@@ -194,6 +194,7 @@ const domHandle = attachDomGrid(container, runtime, {
   rows,
   cols,
   idPrefix: "demo-grid",
+  stickyHeader: true,
   virtualization: {
     rowHeight,
     overscan: 2
