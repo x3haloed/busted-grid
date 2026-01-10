@@ -35,6 +35,12 @@ without owning behavior. Header interactions should dispatch commands
 (`TOGGLE_COLUMN_SORT`, `SET_COLUMN_FILTER`, `SET_COLUMN_WIDTH`), while constraints
 (`canSortColumn`, `canFilterColumn`, `canResizeColumn`) gate what is allowed.
 
+Keyboard: the `@busted-grid/keyboard` adapter supports header controls via F6
+(focus current column header) and Shift+F6 (focus filter). From the first row,
+ArrowUp focuses the current column header and Ctrl+ArrowUp focuses filter. In
+header focus, use ArrowLeft/ArrowRight to change columns and Alt+ArrowLeft/Right
+to resize.
+
 ## Adapter usage
 
 ### DOM + keyboard

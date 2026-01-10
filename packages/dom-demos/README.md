@@ -25,6 +25,7 @@ Open `http://localhost:5174`.
 - Negative values are rejected on commit.
 - Non-numeric input is rejected.
 - Header controls dispatch sort, filter, and resize commands.
+- F6 focuses the current column header (Shift+F6 focuses filter). From the first row, ArrowUp focuses the header and Ctrl+ArrowUp focuses filter. Alt+ArrowLeft/Right resizes.
 - Selection guard cancels range expansion via a command hook.
 
 ### Architecture notes

@@ -65,12 +65,22 @@
 .header-label {
   font-weight: 600;
   color: #0f172a;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
 }
 
 .header-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.header-label:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .header-actions button {

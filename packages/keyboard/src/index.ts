@@ -17,6 +17,37 @@ const DEFAULT_BINDINGS: Record<string, KeyboardBinding> = {
   ArrowRight: { dx: 1, dy: 0 }
 }
 
+function isEditableElement(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true
+  if (target.isContentEditable) return true
+  return false
+}
+
+function getHeaderControl(
+  root: HTMLElement,
+  col: number,
+  control: "sort" | "filter"
+): HTMLElement | null {
+  return root.querySelector<HTMLElement>(
+    `[data-busted-grid-header-control="${control}"][data-busted-grid-col="${col}"]`
+  )
+}
+
+function getHeaderControlMeta(
+  target: EventTarget | null
+): { col: number; control: "sort" | "filter" } | null {
+  if (!(target instanceof HTMLElement)) return null
+  const control = target.getAttribute("data-busted-grid-header-control")
+  const colText = target.getAttribute("data-busted-grid-col")
+  if (!control || !colText) return null
+  if (control !== "sort" && control !== "filter") return null
+  const col = Number(colText)
+  if (!Number.isFinite(col)) return null
+  return { col, control }
+}
+
 export function attachKeyboard(
   element: HTMLElement,
   runtime: GridRuntime,
@@ -25,6 +56,58 @@ export function attachKeyboard(
   const { preventDefault = true, bindings = {} } = options
 
   const listener = (event: KeyboardEvent) => {
+    const headerMeta = getHeaderControlMeta(event.target)
+    if (headerMeta) {
+      if (event.key === "Escape" || event.key === "F6" || event.key === "ArrowDown") {
+        element.querySelector<HTMLElement>('table[role="grid"]')?.focus()
+        if (preventDefault) event.preventDefault()
+        return
+      }
+
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        const direction = event.key === "ArrowLeft" ? -1 : 1
+
+        if (event.altKey) {
+          const vm = runtime.getViewModel()
+          const header = vm.headers[headerMeta.col]
+          if (header) {
+            const delta = event.shiftKey ? 25 : 10
+            runtime.dispatch({
+              type: "SET_COLUMN_WIDTH",
+              col: headerMeta.col,
+              width: header.width + direction * delta
+            })
+          }
+        } else {
+          const nextCol = headerMeta.col + direction
+          const next = getHeaderControl(element, nextCol, headerMeta.control)
+          next?.focus()
+        }
+
+        if (preventDefault) event.preventDefault()
+        return
+      }
+
+      return
+    }
+
+    if (isEditableElement(event.target)) {
+      return
+    }
+
+    if (event.key === "ArrowUp" && !event.shiftKey) {
+      const vm = runtime.getViewModel()
+      if (vm.focus && vm.focus.row === 0) {
+        const control = event.ctrlKey ? "filter" : "sort"
+        const headerControl = getHeaderControl(element, vm.focus.col, control)
+        if (headerControl) {
+          headerControl.focus()
+          if (preventDefault) event.preventDefault()
+          return
+        }
+      }
+    }
+
     if (event.key === "Enter") {
       const vm = runtime.getViewModel()
       if (vm.edit.status === "editing") {
@@ -48,6 +131,18 @@ export function attachKeyboard(
       runtime.dispatch({ type: "CANCEL_EDIT" })
       if (preventDefault) {
         event.preventDefault()
+      }
+      return
+    }
+
+    if (event.key === "F6") {
+      const vm = runtime.getViewModel()
+      const col = vm.focus?.col ?? 0
+      const control = event.shiftKey ? "filter" : "sort"
+      const headerControl = getHeaderControl(element, col, control)
+      if (headerControl) {
+        headerControl.focus()
+        if (preventDefault) event.preventDefault()
       }
       return
     }

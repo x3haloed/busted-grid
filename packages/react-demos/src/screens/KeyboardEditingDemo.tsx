@@ -191,7 +191,9 @@ function KeyboardEditingView({
         <h1 className="page-title">Keyboard + Editing</h1>
         <p className="page-subtitle">
           Click inside the grid. Arrow keys move focus. Enter edits. Escape
-          cancels. Shift+arrows expands selection.
+          cancels. Shift+arrows expands selection. F6 focuses the current column
+          header (Shift+F6 focuses filter). From the first row, ArrowUp focuses
+          the header and Ctrl+ArrowUp focuses filter.
         </p>
       </div>
 

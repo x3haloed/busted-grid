@@ -165,6 +165,8 @@ export function GridView({
                     type="button"
                     tabIndex={-1}
                     className="grid-header-label"
+                    data-busted-grid-header-control="sort"
+                    data-busted-grid-col={c}
                     disabled={!header.canSort}
                     onClick={() =>
                       runtime.dispatch({
@@ -182,6 +184,8 @@ export function GridView({
                     type="button"
                     tabIndex={-1}
                     className="grid-header-filter"
+                    data-busted-grid-header-control="filter"
+                    data-busted-grid-col={c}
                     disabled={!header.canFilter}
                     aria-pressed={header.filterActive}
                     onClick={() =>

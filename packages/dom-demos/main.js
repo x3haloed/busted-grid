@@ -211,9 +211,17 @@ function formatHeader(header) {
   const wrapper = document.createElement("div")
   wrapper.className = "header-inner"
 
-  const label = document.createElement("div")
-  label.className = "header-label"
-  label.textContent = header.label
+  const sortButton = document.createElement("button")
+  sortButton.type = "button"
+  sortButton.tabIndex = -1
+  sortButton.className = "header-label"
+  sortButton.dataset.bustedGridHeaderControl = "sort"
+  sortButton.dataset.bustedGridCol = String(header.col)
+  sortButton.textContent = header.sort ? `${header.label} (${header.sort})` : header.label
+  sortButton.disabled = !header.canSort
+  sortButton.addEventListener("click", () => {
+    runtime.dispatch({ type: "TOGGLE_COLUMN_SORT", col: header.col })
+  })
 
   const actions = document.createElement("div")
   actions.className = "header-actions"
@@ -221,6 +229,8 @@ function formatHeader(header) {
   const filterButton = document.createElement("button")
   filterButton.type = "button"
   filterButton.tabIndex = -1
+  filterButton.dataset.bustedGridHeaderControl = "filter"
+  filterButton.dataset.bustedGridCol = String(header.col)
   filterButton.textContent = header.filterActive ? "Filter on" : "Filter"
   filterButton.disabled = !header.canFilter
   filterButton.addEventListener("click", () => {
@@ -257,7 +267,7 @@ function formatHeader(header) {
     })
   })
   actions.append(filterButton, shrinkButton, growButton)
-  wrapper.append(label, actions)
+  wrapper.append(sortButton, actions)
   return wrapper
 }
 

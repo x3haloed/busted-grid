@@ -18,7 +18,32 @@ export function attachDomGrid(
   }
   let lastFocusKey: string | null = null
   const rerender = () => {
+    const activeElement = document.activeElement
+    const headerControl =
+      activeElement instanceof HTMLElement
+        ? {
+            control: activeElement.getAttribute("data-busted-grid-header-control"),
+            col: activeElement.getAttribute("data-busted-grid-col")
+          }
+        : null
+
     renderGrid(container, runtime, options)
+
+    if (
+      headerControl?.control &&
+      (headerControl.control === "sort" || headerControl.control === "filter") &&
+      headerControl.col
+    ) {
+      const col = Number(headerControl.col)
+      if (Number.isFinite(col)) {
+        container
+          .querySelector<HTMLElement>(
+            `[data-busted-grid-header-control="${headerControl.control}"][data-busted-grid-col="${col}"]`
+          )
+          ?.focus()
+      }
+    }
+
     if (options.virtualization) {
       const focus = runtime.getViewModel().focus
       const focusKey = focus ? `${focus.row}:${focus.col}` : null

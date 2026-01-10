@@ -38,6 +38,12 @@ th.grid-header-cell {
   font: inherit;
 }
 
+.grid-header-label:focus-visible,
+.grid-header-filter:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
 .grid-header-label:disabled,
 .grid-header-filter:disabled {
   cursor: not-allowed;

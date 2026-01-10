@@ -153,6 +153,8 @@ export interface GridCellTemplateContext {
                   type="button"
                   tabindex="-1"
                   class="grid-header-label"
+                  data-busted-grid-header-control="sort"
+                  [attr.data-busted-grid-col]="header.col"
                   (click)="toggleSort(header.col)"
                   [disabled]="!header.canSort"
                 >
@@ -163,6 +165,8 @@ export interface GridCellTemplateContext {
                   type="button"
                   tabindex="-1"
                   class="grid-header-filter"
+                  data-busted-grid-header-control="filter"
+                  [attr.data-busted-grid-col]="header.col"
                   (click)="toggleFilter(header.col)"
                   [attr.aria-pressed]="header.filterActive"
                   [disabled]="!header.canFilter"
