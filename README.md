@@ -2,6 +2,74 @@
 
 This is not a “data grid component.” This is a decision engine that owns the rules, state machines, and command surface for high‑performance spreadsheets. Rendering layers (DOM, React, canvas, native) simply project the decisions the runtime already made.
 
+## Why this exists (and why it’s different)
+
+Traditional grids (AG Grid, Handsontable, etc.) ship as a monolith: rendering,
+keyboard/mouse input, focus/selection state, editing, and column features are
+tightly coupled inside the component. You *can* customize them, but you often
+customize by negotiating with internal lifecycles and feature flags.
+
+Busted Grid flips that: behavior is a **runtime** you control, and rendering is a
+thin adapter. That makes “full customization” a first-class outcome instead of a
+special case.
+
+What this enables:
+
+- **Replace keyboard behavior without fighting the renderer.** Keyboard is an
+  adapter that emits commands. Swap bindings, add modes (vim keys, wrap
+  navigation, custom Tab semantics) without rewriting the table.
+- **Own focus/selection/edit as state machines.** The runtime’s state is the
+  source of truth. Adapters don’t invent their own state; they just project a
+  view model and dispatch commands.
+- **Express rules as constraints, not callbacks.** “This column can’t be resized
+  past 220px” or “filter is disabled for these columns” is a constraint enforced
+  uniformly across mouse/keyboard/programmatic actions.
+- **Intercept and compose behavior centrally.** Plugins can validate, cancel, or
+  transform commands (`before/after`) so you can add “enterprise” rules without
+  threading event handlers through every UI surface.
+- **Render anywhere.** DOM/React/Angular are reference adapters. The runtime is
+  renderer-agnostic, so a canvas/native adapter doesn’t require a rewrite of the
+  behavior layer.
+
+## Mindset shift (how to build with Busted Grid)
+
+If you come from traditional grids, it’s easy to look for “the feature” or “the
+prop” that unlocks your goal. In Busted Grid, your first question is different:
+**is this goal a command, a constraint, a policy, or a derived view?**
+
+### Common goals → Busted Grid approach
+
+- **“I need custom keyboard navigation.”**
+  - Treat input as an adapter problem: map keys → `GridCommand`s.
+  - Treat movement semantics as a policy problem: decide how `MOVE_FOCUS`
+    resolves (clamp, wrap, skip, jump, etc.).
+- **“I need to block/allow behavior based on business rules.”**
+  - Put the rule in `GridConstraints` so it applies uniformly to mouse, keyboard,
+    and programmatic commands.
+- **“I need a special header UI (images, menus, weird layouts).”**
+  - Render whatever you want in `<thead>`.
+  - Wire interactions by dispatching header commands; gate them with constraints.
+- **“I need to intercept something globally.”**
+  - Add a plugin to validate/cancel/transform commands in one place instead of
+    scattering callbacks across events.
+
+### The trade-off (more setup, less fighting)
+
+Busted Grid deliberately does **less** “out of the box” than monolithic grids.
+In seemingly easy scenarios (basic column headers, a default keymap, simple edit
+flows), you’ll write more code up front:
+
+- Define your initial state (`focus/selection/edit/columns`).
+- Provide constraints/policies instead of toggling feature props.
+- Attach an input adapter (keyboard) and decide keybindings.
+- Decide how headers/editors look in your UI layer.
+
+That cost is the point: you pay a small amount of explicit setup to get a system
+where customization is *structural*, not an escape hatch. When requirements get
+weird (enterprise rules, custom input modes, nonstandard headers/editing),
+you’re composing commands/constraints/policies instead of wrestling a component’s
+internal event model.
+
 ## Workspace layout
 
 | Package | Description |
