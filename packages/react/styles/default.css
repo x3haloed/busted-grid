@@ -6,8 +6,9 @@ table {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #fff;
+  background: var(--busted-grid-header-bg, #fff);
 }
+
 
 th,
 td {

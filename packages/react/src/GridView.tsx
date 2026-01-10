@@ -38,17 +38,18 @@ export function GridView({
 }: GridViewProps): JSX.Element {
   const idPrefix = idPrefixProp ?? React.useId()
   const internalScrollRef = React.useRef<HTMLDivElement>(null)
+  const lastFocusRef = React.useRef<{ row: number; col: number } | null>(null)
   const scrollRef = scrollRefProp ?? internalScrollRef
   const [scroll, setScroll] = React.useState({ top: 0, left: 0 })
   const viewport = virtualization
     ? {
-        rows,
-        cols,
-        rowHeight: virtualization.rowHeight,
-        viewportHeight: virtualization.height,
-        scrollTop: scroll.top,
-        overscan: virtualization.overscan
-      }
+      rows,
+      cols,
+      rowHeight: virtualization.rowHeight,
+      viewportHeight: virtualization.height,
+      scrollTop: scroll.top,
+      overscan: virtualization.overscan
+    }
     : undefined
   const vm = useGrid(runtime, viewport)
   const overscan = virtualization?.overscan ?? 2
@@ -59,12 +60,12 @@ export function GridView({
     : 0
   const rowEnd = useVirtual
     ? Math.min(
-        rows - 1,
-        rowStart +
-          Math.ceil(virtualization.height / rowHeight) +
-          overscan * 2 -
-          1
-      )
+      rows - 1,
+      rowStart +
+      Math.ceil(virtualization.height / rowHeight) +
+      overscan * 2 -
+      1
+    )
     : rows - 1
   const topOffset = useVirtual ? rowStart * rowHeight : 0
   const bottomOffset = useVirtual
@@ -231,7 +232,7 @@ export function GridView({
       </thead>
       <tbody>
         {useVirtual && topOffset > 0 && (
-          <tr role="presentation" aria-hidden="true">
+          <tr role="presentation" aria-hidden="true" data-testid="top-offset-row">
             <td
               role="presentation"
               aria-hidden="true"
@@ -240,6 +241,7 @@ export function GridView({
             />
           </tr>
         )}
+
         {rowIndexes.map(r => (
           <tr
             key={r}
@@ -312,7 +314,20 @@ export function GridView({
     if (!virtualization) return
     const focus = vm.focus
     const container = scrollRef.current
-    if (!focus || !container) return
+    if (!focus || !container) {
+      lastFocusRef.current = null
+      return
+    }
+
+    // Only auto-scroll if the focus has actually changed
+    const focusChanged =
+      !lastFocusRef.current ||
+      lastFocusRef.current.row !== focus.row ||
+      lastFocusRef.current.col !== focus.col
+
+    if (!focusChanged) return
+    lastFocusRef.current = focus
+
     const viewHeight = virtualization.height
     const viewWidth = virtualization.width
     const cellTop = focus.row * virtualization.rowHeight
@@ -335,15 +350,16 @@ export function GridView({
     }
 
     if (nextTop !== scroll.top || nextLeft !== scroll.left) {
+      // Synchronize both React state and DOM scroll position
+      container.scrollTop = nextTop
+      container.scrollLeft = nextLeft
       setScroll({ top: nextTop, left: nextLeft })
     }
   }, [
     colLeftOffsets,
     colWidths,
     virtualization,
-    vm.focus,
-    scroll.top,
-    scroll.left
+    vm.focus
   ])
 
   if (!virtualization) {
