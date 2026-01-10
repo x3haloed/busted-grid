@@ -18,6 +18,9 @@ export function Welcome(): JSX.Element {
           commits and visible status/errors.
         </p>
         <div className="card-actions">
+          <Link className="button" to="/keyboard-modes">
+            Open keyboard modes demo
+          </Link>
           <Link className="button button-primary" to="/keyboard-editing">
             Open keyboard + editing demo
           </Link>
@@ -35,4 +38,3 @@ export function Welcome(): JSX.Element {
     </div>
   )
 }
-

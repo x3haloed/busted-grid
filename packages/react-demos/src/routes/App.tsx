@@ -1,6 +1,7 @@
 import * as React from "react"
 import { NavLink, Route, Routes } from "react-router-dom"
 import { KeyboardEditingDemo } from "../screens/KeyboardEditingDemo.js"
+import { KeyboardModesDemo } from "../screens/KeyboardModesDemo.js"
 import { Welcome } from "../screens/Welcome.js"
 
 type NavItem = {
@@ -14,6 +15,11 @@ const navItems: NavItem[] = [
     to: "/",
     title: "Welcome",
     description: "Quick links and runtime principles."
+  },
+  {
+    to: "/keyboard-modes",
+    title: "Keyboard modes",
+    description: "Swap focus policies and keymaps live."
   },
   {
     to: "/keyboard-editing",
@@ -70,6 +76,7 @@ export function App(): JSX.Element {
         <main className="app-main">
           <Routes>
             <Route path="/" element={<Welcome />} />
+            <Route path="/keyboard-modes" element={<KeyboardModesDemo />} />
             <Route
               path="/keyboard-editing"
               element={<KeyboardEditingDemo />}
