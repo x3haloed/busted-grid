@@ -125,7 +125,6 @@ export function GridView({
                 col: c,
                 label: `Column ${c + 1}`,
                 width: colWidths[c] ?? 120,
-                locked: false,
                 sort: null,
                 filterActive: false,
                 canSort: true,
@@ -153,7 +152,6 @@ export function GridView({
                       ? "descending"
                       : "none"
                 }
-                data-locked={header.locked || undefined}
                 data-filter={header.filterActive || undefined}
                 data-sort={header.sort ?? "none"}
                 className="grid-header-cell"

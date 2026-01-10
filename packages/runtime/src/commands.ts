@@ -15,4 +15,3 @@ export type GridCommand =
   | { type: "TOGGLE_COLUMN_SORT"; col: number }
   | { type: "SET_COLUMN_FILTER"; col: number; active: boolean }
   | { type: "SET_COLUMN_WIDTH"; col: number; width: number }
-  | { type: "SET_COLUMN_LOCKED"; col: number; locked: boolean }

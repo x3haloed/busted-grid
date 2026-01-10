@@ -26,7 +26,6 @@ export type SortDirection = "asc" | "desc" | null
 
 export interface ColumnState {
   width: number
-  locked: boolean
   label?: string
   sort?: SortDirection
   filterActive?: boolean
@@ -36,7 +35,6 @@ export interface ColumnHeaderState {
   col: number
   label: string
   width: number
-  locked: boolean
   sort: SortDirection
   filterActive: boolean
   canSort: boolean

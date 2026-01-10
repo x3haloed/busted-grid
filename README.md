@@ -20,7 +20,7 @@ npm install @busted-grid/runtime @busted-grid/dom @busted-grid/react @busted-gri
 
 ## Core ideas (runtime)
 
-1. **Declarative constraints.** Columns are layout + behavior constraints (`width`, `move`, `resize`, `sort`, `edit`, `header`). “Lock the third column at 180px” is a constraint, not a callback.
+1. **Declarative constraints.** Columns are layout + behavior constraints (`width`, `move`, `resize`, `sort`, `edit`, `header`). “Fix the third column at 180px” is a constraint, not a callback.
 2. **Owned state machines.** Focus, selection, edit, drag, clipboard, etc. are owned by the runtime. Policies decide how that state evolves.
 3. **Command-driven input.** Everything is expressed as commands (`FOCUS_CELL`, `MOVE_FOCUS`, `SELECT_CELL`, `BEGIN_EDIT`, `COMMIT_EDIT`). Input devices translate intent into commands, which keeps behavior inspectable/replayable/testable.
 4. **Extension model.** Plugins intercept commands (`before/after`), advertise capabilities, provide editors/formatters, and assert new constraints without callback soup.

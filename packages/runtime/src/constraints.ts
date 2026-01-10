@@ -12,5 +12,4 @@ export interface GridConstraints {
   canSortColumn?(col: number, direction: SortDirection, state: GridState): boolean
   canFilterColumn?(col: number, active: boolean, state: GridState): boolean
   canResizeColumn?(col: number, width: number, state: GridState): boolean
-  canLockColumn?(col: number, locked: boolean, state: GridState): boolean
 }

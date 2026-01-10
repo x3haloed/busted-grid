@@ -39,7 +39,6 @@ export function KeyboardEditingDemo(): JSX.Element {
       edit: { status: "idle", cell: null },
       columns: Array.from({ length: cols }, (_, index) => ({
         width: 120,
-        locked: false,
         label: columnLabel(index)
       }))
     }

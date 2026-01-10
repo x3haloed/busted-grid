@@ -26,7 +26,6 @@ const state = {
   edit: { status: "idle", cell: null },
   columns: Array.from({ length: cols }, (_, index) => ({
     width: columnWidth,
-    locked: index < 2,
     label: columnLabel(index)
   }))
 }
@@ -84,11 +83,8 @@ function columnLabel(index) {
 
 const editPolicy = {
   ...defaultEditPolicy,
-  commitEdit: async (cell, value, gridState) => {
+  commitEdit: async (cell, value) => {
     await delay(300)
-    if (gridState.columns[cell.col]?.locked) {
-      throw new Error(`Column ${columnLabel(cell.col)} is locked.`)
-    }
     if (typeof value !== "number" || Number.isNaN(value)) {
       throw new Error("Value must be a number.")
     }
@@ -126,12 +122,6 @@ const constraints = {
       to.col < cols
     )
   },
-  canBeginEdit(cell) {
-    return !state.columns[cell.col]?.locked
-  },
-  canCommitEdit(cell) {
-    return !state.columns[cell.col]?.locked
-  },
   canSortColumn(col) {
     return col % 3 !== 0
   },
@@ -166,13 +156,6 @@ const demoPlugin = {
       }
     }
     if (result.status === "blocked") {
-      if (command.type === "BEGIN_EDIT" && "cell" in command) {
-        setStatus(
-          `Column ${columnLabel(command.cell.col)} is locked.`,
-          "error"
-        )
-        return
-      }
       setStatus(`Command blocked: ${command.type}.`, "error")
     }
   }
@@ -188,23 +171,22 @@ const runtime = new GridRuntime({
 
 function formatCell(cell, vm) {
   const value = getValue(cell)
-  const lockedTag = isLockedColumn(cell.col) ? " [RO]" : ""
   const isEditing =
     vm.edit.cell &&
     vm.edit.cell.row === cell.row &&
     vm.edit.cell.col === cell.col
 
-  if (!isEditing) return `${value}${lockedTag}`
+  if (!isEditing) return `${value}`
 
   switch (vm.edit.status) {
     case "editing":
-      return `${value}${lockedTag} (edit)`
+      return `${value} (edit)`
     case "committing":
-      return `${value}${lockedTag} (committing)`
+      return `${value} (committing)`
     case "error":
-      return `${value}${lockedTag} (error)`
+      return `${value} (error)`
     default:
-      return `${value}${lockedTag}`
+      return `${value}`
   }
 }
 
@@ -273,20 +255,7 @@ function formatHeader(header) {
       width: header.width + 10
     })
   })
-
-  const lockButton = document.createElement("button")
-  lockButton.type = "button"
-  lockButton.tabIndex = -1
-  lockButton.textContent = header.locked ? "Unlock" : "Lock"
-  lockButton.addEventListener("click", () => {
-    runtime.dispatch({
-      type: "SET_COLUMN_LOCKED",
-      col: header.col,
-      locked: !header.locked
-    })
-  })
-
-  actions.append(filterButton, shrinkButton, growButton, lockButton)
+  actions.append(filterButton, shrinkButton, growButton)
   wrapper.append(label, actions)
   return wrapper
 }

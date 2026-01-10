@@ -137,7 +137,6 @@ export interface GridCellTemplateContext {
               class="grid-header-cell"
               [attr.aria-colindex]="header.col + 1"
               [attr.aria-sort]="ariaSort(header.sort)"
-              [attr.data-locked]="header.locked ? '' : null"
               [attr.data-filter]="header.filterActive ? '' : null"
               [attr.data-sort]="header.sort ?? 'none'"
             >

@@ -91,14 +91,6 @@
   background: #f1f5f9;
 }
 
-.grid-container th[data-locked="true"] {
-  background: #fef3c7;
-}
-
-.grid-container th[data-locked="true"] .header-label {
-  color: #92400e;
-}
-
 .grid-container th[data-filter="true"] .header-label {
   color: #1d4ed8;
 }

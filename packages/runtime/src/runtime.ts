@@ -440,35 +440,6 @@ export class GridRuntime {
         }
         break
       }
-
-      case "SET_COLUMN_LOCKED": {
-        const column = this.state.columns[command.col]
-        if (!column) {
-          ignored = true
-          reason = "missing-column"
-          break
-        }
-        if (
-          this.constraints.canLockColumn?.(
-            command.col,
-            command.locked,
-            this.state
-          ) ??
-          true
-        ) {
-          if (column.locked !== command.locked) {
-            column.locked = command.locked
-            changed = true
-          } else {
-            ignored = true
-            reason = "no-change"
-          }
-        } else {
-          blocked = true
-          reason = "constraint"
-        }
-        break
-      }
     }
 
     if (changed) {
@@ -491,7 +462,6 @@ export class GridRuntime {
       col,
       label: column.label ?? `Column ${col + 1}`,
       width: column.width,
-      locked: column.locked,
       sort: column.sort ?? null,
       filterActive: column.filterActive ?? false,
       canSort:

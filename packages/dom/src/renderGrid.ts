@@ -113,7 +113,6 @@ export function renderGrid(
       col: c,
       label: `Column ${c + 1}`,
       width: vm.columns[c]?.width ?? 120,
-      locked: false,
       sort: null,
       filterActive: false,
       canSort: true,
