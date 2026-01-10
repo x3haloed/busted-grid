@@ -6,6 +6,8 @@ export interface GridViewProps {
   runtime: GridRuntime
   rows: number
   cols: number
+  idPrefix?: string
+  scrollRef?: React.RefObject<HTMLDivElement>
   renderCell?: (cell: Cell) => React.ReactNode
   virtualization?: {
     rowHeight: number
@@ -22,24 +24,27 @@ export function GridView({
   runtime,
   rows,
   cols,
+  idPrefix: idPrefixProp,
+  scrollRef: scrollRefProp,
   renderCell = defaultRenderer,
   virtualization
 }: GridViewProps): JSX.Element {
-  const idPrefix = React.useId()
-  const scrollRef = React.useRef<HTMLDivElement>(null)
+  const idPrefix = idPrefixProp ?? React.useId()
+  const internalScrollRef = React.useRef<HTMLDivElement>(null)
+  const scrollRef = scrollRefProp ?? internalScrollRef
   const [scroll, setScroll] = React.useState({ top: 0, left: 0 })
   const viewport = virtualization
     ? {
-        rows,
-        cols,
-        rowHeight: virtualization.rowHeight,
-        colWidth: virtualization.colWidth,
-        viewportHeight: virtualization.height,
-        viewportWidth: virtualization.width,
-        scrollTop: scroll.top,
-        scrollLeft: scroll.left,
-        overscan: virtualization.overscan
-      }
+      rows,
+      cols,
+      rowHeight: virtualization.rowHeight,
+      colWidth: virtualization.colWidth,
+      viewportHeight: virtualization.height,
+      viewportWidth: virtualization.width,
+      scrollTop: scroll.top,
+      scrollLeft: scroll.left,
+      overscan: virtualization.overscan
+    }
     : undefined
   const vm = useGrid(runtime, viewport)
   const rowRange = vm.viewport?.rowRange ?? { start: 0, end: rows - 1 }
@@ -138,9 +143,9 @@ export function GridView({
                   style={
                     useVirtual
                       ? {
-                          width: virtualization?.colWidth,
-                          height: virtualization?.rowHeight
-                        }
+                        width: virtualization?.colWidth,
+                        height: virtualization?.rowHeight
+                      }
                       : undefined
                   }
                   onClick={event => {
@@ -218,14 +223,10 @@ export function GridView({
       nextLeft = cellRight - viewWidth
     }
 
-    if (nextTop !== container.scrollTop) {
-      container.scrollTop = nextTop
+    if (nextTop !== scroll.top || nextLeft !== scroll.left) {
+      setScroll({ top: nextTop, left: nextLeft })
     }
-    if (nextLeft !== container.scrollLeft) {
-      container.scrollLeft = nextLeft
-    }
-    setScroll({ top: nextTop, left: nextLeft })
-  }, [virtualization, vm.focus])
+  }, [virtualization, vm.focus, scroll.top, scroll.left])
 
   if (!virtualization) {
     return table

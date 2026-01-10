@@ -162,6 +162,11 @@ npm run build      # compiles every package (tsc -p packages/*)
 
 During local dev you can run a single package build (e.g. `npm run build -w @busted-grid/react`).
 
+### Demos
+
+- DOM demo: `npm run dev -w @busted-grid/dom-demos` (after building runtime/dom/keyboard), then open `http://localhost:5174`
+- React demos: `npm run dev -w @busted-grid/react-demos` (after building runtime/react/keyboard), then open `http://localhost:5175`
+
 ## Roadmap
 
 - Expand constraint schema (`resize`, `sort`, `edit` policies)

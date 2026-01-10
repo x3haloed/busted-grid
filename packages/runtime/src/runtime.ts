@@ -3,6 +3,10 @@ import type { GridConstraints } from "./constraints.js"
 import type { DispatchResult } from "./dispatch.js"
 import { defaultEditPolicy, type EditPolicy } from "./editPolicy.js"
 import type { FocusPolicy } from "./focusPolicy.js"
+import {
+  defaultSelectionPolicy,
+  type SelectionPolicy
+} from "./selectionPolicy.js"
 import type { CommandContext, GridCommandPlugin } from "./plugins.js"
 import type { GridState } from "./state.js"
 import type {
@@ -18,6 +22,7 @@ export interface GridRuntimeOptions {
   state: GridState
   constraints: GridConstraints
   focusPolicy: FocusPolicy
+  selectionPolicy?: SelectionPolicy
   editPolicy?: EditPolicy
   plugins?: GridCommandPlugin[]
 }
@@ -26,6 +31,7 @@ export class GridRuntime {
   private state: GridState
   private constraints: GridConstraints
   private focusPolicy: FocusPolicy
+  private selectionPolicy: SelectionPolicy
   private editPolicy: EditPolicy
   private plugins: GridCommandPlugin[]
   private listeners = new Set<() => void>()
@@ -34,6 +40,7 @@ export class GridRuntime {
     this.state = options.state
     this.constraints = options.constraints
     this.focusPolicy = options.focusPolicy
+    this.selectionPolicy = options.selectionPolicy ?? defaultSelectionPolicy
     this.editPolicy = options.editPolicy ?? defaultEditPolicy
     this.plugins = options.plugins ?? []
   }
@@ -128,10 +135,10 @@ export class GridRuntime {
           (this.constraints.canSelect?.(command.cell, this.state) ?? true)
         ) {
           this.state.focus = command.cell
-          this.state.selection = {
-            anchor: command.cell,
-            rangeEnd: command.cell
-          }
+          this.state.selection = this.selectionPolicy.select(
+            command.cell,
+            this.state
+          )
           changed = true
         } else {
           blocked = true
@@ -146,10 +153,10 @@ export class GridRuntime {
           (this.constraints.canSetAnchor?.(command.cell, this.state) ?? true)
         ) {
           this.state.focus = command.cell
-          this.state.selection = {
-            anchor: command.cell,
-            rangeEnd: command.cell
-          }
+          this.state.selection = this.selectionPolicy.setAnchor(
+            command.cell,
+            this.state
+          )
           changed = true
         } else {
           blocked = true
@@ -159,26 +166,20 @@ export class GridRuntime {
       }
 
       case "EXTEND_SELECTION": {
-        const anchor = this.state.selection.anchor ?? this.state.focus
-        if (!anchor) {
-          ignored = true
-          reason = "no-anchor"
-          break
-        }
         if (
           this.constraints.canFocus(command.cell, this.state) &&
           (this.constraints.canExtendSelection?.(
-            anchor,
+            this.state.selection.anchor ?? this.state.focus!,
             command.cell,
             this.state
           ) ??
             true)
         ) {
           this.state.focus = command.cell
-          this.state.selection = {
-            anchor,
-            rangeEnd: command.cell
-          }
+          this.state.selection = this.selectionPolicy.extendSelection(
+            command.cell,
+            this.state
+          )
           changed = true
         } else {
           blocked = true
@@ -356,11 +357,16 @@ export class GridRuntime {
     this.editPolicy = policy
   }
 
+  replaceSelectionPolicy(policy: SelectionPolicy): void {
+    this.selectionPolicy = policy
+  }
+
   private createContext(): CommandContext {
     return {
       state: this.state,
       constraints: this.constraints,
       focusPolicy: this.focusPolicy,
+      selectionPolicy: this.selectionPolicy,
       editPolicy: this.editPolicy
     }
   }

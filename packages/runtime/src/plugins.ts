@@ -3,12 +3,14 @@ import type { GridConstraints } from "./constraints.js"
 import type { DispatchResult } from "./dispatch.js"
 import type { EditPolicy } from "./editPolicy.js"
 import type { FocusPolicy } from "./focusPolicy.js"
+import type { SelectionPolicy } from "./selectionPolicy.js"
 import type { GridState } from "./state.js"
 
 export interface CommandContext {
   state: GridState
   constraints: GridConstraints
   focusPolicy: FocusPolicy
+  selectionPolicy: SelectionPolicy
   editPolicy: EditPolicy
 }
 
