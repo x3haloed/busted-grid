@@ -27,6 +27,14 @@ npm install @busted-grid/runtime @busted-grid/dom @busted-grid/react @busted-gri
 5. **Stable data contract.** Grids bind to interfaces (`getRowCount`, `getCell`, `prefetch`, `commitEdit`) instead of raw arrays, which scales without leaking implementation details.
 6. **Rendering is an adapter.** The runtime exposes a view model (visible rows, measured sizes, focus/selection rectangles, pinned zones). Renderers simply consume it.
 
+## Headers (runtime-driven)
+
+Headers are part of the runtime contract. The view model exposes `headers` (label,
+sort/filter state, width, and capability flags) so adapters can render header UI
+without owning behavior. Header interactions should dispatch commands
+(`TOGGLE_COLUMN_SORT`, `SET_COLUMN_FILTER`, `SET_COLUMN_WIDTH`), while constraints
+(`canSortColumn`, `canFilterColumn`, `canResizeColumn`) gate what is allowed.
+
 ## Adapter usage
 
 ### DOM + keyboard
@@ -126,7 +134,7 @@ DOM:
 attachDomGrid(containerElement, runtime, {
   rows: 10000,
   cols: 1000,
-  virtualization: { rowHeight: 24, colWidth: 120, overscan: 2 }
+  virtualization: { rowHeight: 24, overscan: 2 }
 })
 ```
 
@@ -137,7 +145,7 @@ React:
   runtime={runtime}
   rows={10000}
   cols={1000}
-  virtualization={{ rowHeight: 24, colWidth: 120, width: 800, height: 400 }}
+  virtualization={{ rowHeight: 24, width: 800, height: 400 }}
 />
 ```
 
@@ -148,7 +156,7 @@ Angular:
   [runtime]="runtime"
   [rows]="10000"
   [cols]="1000"
-  [virtualization]="{ rowHeight: 24, colWidth: 120, width: 800, height: 400 }"
+  [virtualization]="{ rowHeight: 24, width: 800, height: 400 }"
 ></busted-grid-view>
 ```
 

@@ -3,6 +3,7 @@ import type { GridConstraints } from "./constraints.js"
 import type { DispatchResult } from "./dispatch.js"
 import { defaultEditPolicy, type EditPolicy } from "./editPolicy.js"
 import type { FocusPolicy } from "./focusPolicy.js"
+import { defaultSortPolicy, type SortPolicy } from "./sortPolicy.js"
 import {
   defaultSelectionPolicy,
   type SelectionPolicy
@@ -24,6 +25,7 @@ export interface GridRuntimeOptions {
   focusPolicy: FocusPolicy
   selectionPolicy?: SelectionPolicy
   editPolicy?: EditPolicy
+  sortPolicy?: SortPolicy
   plugins?: GridCommandPlugin[]
 }
 
@@ -33,6 +35,7 @@ export class GridRuntime {
   private focusPolicy: FocusPolicy
   private selectionPolicy: SelectionPolicy
   private editPolicy: EditPolicy
+  private sortPolicy: SortPolicy
   private plugins: GridCommandPlugin[]
   private listeners = new Set<() => void>()
 
@@ -42,6 +45,7 @@ export class GridRuntime {
     this.focusPolicy = options.focusPolicy
     this.selectionPolicy = options.selectionPolicy ?? defaultSelectionPolicy
     this.editPolicy = options.editPolicy ?? defaultEditPolicy
+    this.sortPolicy = options.sortPolicy ?? defaultSortPolicy
     this.plugins = options.plugins ?? []
   }
 
@@ -317,6 +321,154 @@ export class GridRuntime {
         }
         break
       }
+
+      case "SET_COLUMN_SORT": {
+        const column = this.state.columns[command.col]
+        if (!column) {
+          ignored = true
+          reason = "missing-column"
+          break
+        }
+        if (
+          this.constraints.canSortColumn?.(
+            command.col,
+            command.direction,
+            this.state
+          ) ??
+          true
+        ) {
+          if (column.sort !== command.direction) {
+            column.sort = command.direction
+            changed = true
+          } else {
+            ignored = true
+            reason = "no-change"
+          }
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
+
+      case "TOGGLE_COLUMN_SORT": {
+        const column = this.state.columns[command.col]
+        if (!column) {
+          ignored = true
+          reason = "missing-column"
+          break
+        }
+        const nextDirection = this.sortPolicy.nextSortDirection(
+          column.sort ?? null
+        )
+        if (
+          this.constraints.canSortColumn?.(
+            command.col,
+            nextDirection,
+            this.state
+          ) ??
+          true
+        ) {
+          if (column.sort !== nextDirection) {
+            column.sort = nextDirection
+            changed = true
+          } else {
+            ignored = true
+            reason = "no-change"
+          }
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
+
+      case "SET_COLUMN_FILTER": {
+        const column = this.state.columns[command.col]
+        if (!column) {
+          ignored = true
+          reason = "missing-column"
+          break
+        }
+        if (
+          this.constraints.canFilterColumn?.(
+            command.col,
+            command.active,
+            this.state
+          ) ??
+          true
+        ) {
+          if ((column.filterActive ?? false) !== command.active) {
+            column.filterActive = command.active
+            changed = true
+          } else {
+            ignored = true
+            reason = "no-change"
+          }
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
+
+      case "SET_COLUMN_WIDTH": {
+        const column = this.state.columns[command.col]
+        if (!column) {
+          ignored = true
+          reason = "missing-column"
+          break
+        }
+        if (
+          this.constraints.canResizeColumn?.(
+            command.col,
+            command.width,
+            this.state
+          ) ??
+          true
+        ) {
+          if (column.width !== command.width) {
+            column.width = command.width
+            changed = true
+          } else {
+            ignored = true
+            reason = "no-change"
+          }
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
+
+      case "SET_COLUMN_LOCKED": {
+        const column = this.state.columns[command.col]
+        if (!column) {
+          ignored = true
+          reason = "missing-column"
+          break
+        }
+        if (
+          this.constraints.canLockColumn?.(
+            command.col,
+            command.locked,
+            this.state
+          ) ??
+          true
+        ) {
+          if (column.locked !== command.locked) {
+            column.locked = command.locked
+            changed = true
+          } else {
+            ignored = true
+            reason = "no-change"
+          }
+        } else {
+          blocked = true
+          reason = "constraint"
+        }
+        break
+      }
     }
 
     if (changed) {
@@ -335,12 +487,37 @@ export class GridRuntime {
   }
 
   getViewModel(viewport?: ViewportConfig): GridViewModel {
+    const headers = this.state.columns.map((column, col) => ({
+      col,
+      label: column.label ?? `Column ${col + 1}`,
+      width: column.width,
+      locked: column.locked,
+      sort: column.sort ?? null,
+      filterActive: column.filterActive ?? false,
+      canSort:
+        this.constraints.canSortColumn?.(
+          col,
+          column.sort ?? null,
+          this.state
+        ) ?? true,
+      canFilter:
+        this.constraints.canFilterColumn?.(
+          col,
+          column.filterActive ?? false,
+          this.state
+        ) ?? true,
+      canResize:
+        this.constraints.canResizeColumn?.(col, column.width, this.state) ??
+        true
+    }))
+
     return {
       focus: this.state.focus,
       selection: { ...this.state.selection },
       selectionRange: getSelectionRange(this.state.selection),
       edit: { ...this.state.edit },
       columns: [...this.state.columns],
+      headers,
       viewport: viewport ? deriveViewport(viewport) : undefined
     }
   }
@@ -367,7 +544,8 @@ export class GridRuntime {
       constraints: this.constraints,
       focusPolicy: this.focusPolicy,
       selectionPolicy: this.selectionPolicy,
-      editPolicy: this.editPolicy
+      editPolicy: this.editPolicy,
+      sortPolicy: this.sortPolicy
     }
   }
 

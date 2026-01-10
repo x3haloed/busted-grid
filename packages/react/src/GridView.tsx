@@ -1,5 +1,9 @@
 import * as React from "react"
-import type { Cell, GridRuntime } from "@busted-grid/runtime"
+import type {
+  Cell,
+  ColumnHeaderState,
+  GridRuntime
+} from "@busted-grid/runtime"
 import { useGrid } from "./useGrid.js"
 
 export interface GridViewProps {
@@ -9,9 +13,9 @@ export interface GridViewProps {
   idPrefix?: string
   scrollRef?: React.RefObject<HTMLDivElement>
   renderCell?: (cell: Cell) => React.ReactNode
+  renderHeaderCell?: (header: ColumnHeaderState) => React.ReactNode
   virtualization?: {
     rowHeight: number
-    colWidth: number
     width: number
     height: number
     overscan?: number
@@ -27,6 +31,7 @@ export function GridView({
   idPrefix: idPrefixProp,
   scrollRef: scrollRefProp,
   renderCell = defaultRenderer,
+  renderHeaderCell,
   virtualization
 }: GridViewProps): JSX.Element {
   const idPrefix = idPrefixProp ?? React.useId()
@@ -35,65 +40,201 @@ export function GridView({
   const [scroll, setScroll] = React.useState({ top: 0, left: 0 })
   const viewport = virtualization
     ? {
-      rows,
-      cols,
-      rowHeight: virtualization.rowHeight,
-      colWidth: virtualization.colWidth,
-      viewportHeight: virtualization.height,
-      viewportWidth: virtualization.width,
-      scrollTop: scroll.top,
-      scrollLeft: scroll.left,
-      overscan: virtualization.overscan
-    }
+        rows,
+        cols,
+        rowHeight: virtualization.rowHeight,
+        viewportHeight: virtualization.height,
+        scrollTop: scroll.top,
+        overscan: virtualization.overscan
+      }
     : undefined
   const vm = useGrid(runtime, viewport)
-  const rowRange = vm.viewport?.rowRange ?? { start: 0, end: rows - 1 }
-  const colRange = vm.viewport?.colRange ?? { start: 0, end: cols - 1 }
-  const rowStart = Math.max(0, rowRange.start)
-  const rowEnd = Math.min(rows - 1, rowRange.end)
-  const colStart = Math.max(0, colRange.start)
-  const colEnd = Math.min(cols - 1, colRange.end)
-  const useVirtual =
-    !!virtualization && rowEnd >= rowStart && colEnd >= colStart
-  const leftOffset = useVirtual ? colStart * virtualization.colWidth : 0
-  const rightOffset = useVirtual
-    ? Math.max(0, cols - colEnd - 1) * virtualization.colWidth
+  const overscan = virtualization?.overscan ?? 2
+  const rowHeight = virtualization?.rowHeight ?? 1
+  const useVirtual = !!virtualization
+  const rowStart = useVirtual
+    ? Math.max(0, Math.floor(scroll.top / rowHeight) - overscan)
     : 0
-  const topOffset = useVirtual ? rowStart * virtualization.rowHeight : 0
+  const rowEnd = useVirtual
+    ? Math.min(
+        rows - 1,
+        rowStart +
+          Math.ceil(virtualization.height / rowHeight) +
+          overscan * 2 -
+          1
+      )
+    : rows - 1
+  const topOffset = useVirtual ? rowStart * rowHeight : 0
   const bottomOffset = useVirtual
-    ? Math.max(0, rows - rowEnd - 1) * virtualization.rowHeight
+    ? Math.max(0, rows - rowEnd - 1) * rowHeight
     : 0
-  const visibleCols = useVirtual ? colEnd - colStart + 1 : cols
-  const columnSlots =
-    (visibleCols > 0 ? visibleCols : 1) +
-    (leftOffset > 0 ? 1 : 0) +
-    (rightOffset > 0 ? 1 : 0)
-  const rowIndexes = useVirtual
-    ? Array.from({ length: rowEnd - rowStart + 1 }, (_, i) => rowStart + i)
-    : Array.from({ length: rows }, (_, i) => i)
-  const colIndexes = useVirtual
-    ? Array.from({ length: colEnd - colStart + 1 }, (_, i) => colStart + i)
-    : Array.from({ length: cols }, (_, i) => i)
+  const rowIndexes = Array.from(
+    { length: Math.max(0, rowEnd - rowStart + 1) },
+    (_, i) => rowStart + i
+  )
+  const colIndexes = Array.from({ length: cols }, (_, i) => i)
   const activeDescendant = vm.focus
     ? `${idPrefix}-cell-${vm.focus.row}-${vm.focus.col}`
     : undefined
+
+  const colWidths = React.useMemo(() => {
+    return Array.from({ length: cols }, (_, index) => {
+      const column = vm.columns[index]
+      return column?.width ?? 120
+    })
+  }, [cols, vm.columns])
+
+  const colLeftOffsets = React.useMemo(() => {
+    const offsets = new Array<number>(cols)
+    let current = 0
+    for (let i = 0; i < cols; i++) {
+      offsets[i] = current
+      current += colWidths[i] ?? 0
+    }
+    return offsets
+  }, [cols, colWidths])
+
+  const headerByCol = React.useMemo(() => {
+    const map = new Map<number, ColumnHeaderState>()
+    for (const header of vm.headers) {
+      map.set(header.col, header)
+    }
+    return map
+  }, [vm.headers])
+
   const table = (
     <table
       tabIndex={0}
       role="grid"
-      aria-rowcount={rows}
+      aria-rowcount={rows + 1}
       aria-colcount={cols}
       aria-multiselectable={vm.selectionRange ? "true" : "false"}
       aria-activedescendant={activeDescendant}
-      style={useVirtual ? { tableLayout: "fixed" } : undefined}
     >
+      <colgroup>
+        {colWidths.map((width, index) => (
+          <col key={index} style={{ width }} />
+        ))}
+      </colgroup>
+      <thead>
+        <tr role="row" aria-rowindex={1}>
+          {colIndexes.map(c => {
+            const header =
+              headerByCol.get(c) ??
+              ({
+                col: c,
+                label: `Column ${c + 1}`,
+                width: colWidths[c] ?? 120,
+                locked: false,
+                sort: null,
+                filterActive: false,
+                canSort: true,
+                canFilter: true,
+                canResize: true
+              } satisfies ColumnHeaderState)
+
+            const sortLabel =
+              header.sort === "asc"
+                ? "asc"
+                : header.sort === "desc"
+                  ? "desc"
+                  : ""
+
+            return (
+              <th
+                key={c}
+                role="columnheader"
+                scope="col"
+                aria-colindex={c + 1}
+                aria-sort={
+                  header.sort === "asc"
+                    ? "ascending"
+                    : header.sort === "desc"
+                      ? "descending"
+                      : "none"
+                }
+                data-locked={header.locked || undefined}
+                data-filter={header.filterActive || undefined}
+                data-sort={header.sort ?? "none"}
+                className="grid-header-cell"
+              >
+                <div className="grid-header-inner">
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    className="grid-header-label"
+                    disabled={!header.canSort}
+                    onClick={() =>
+                      runtime.dispatch({
+                        type: "TOGGLE_COLUMN_SORT",
+                        col: c
+                      })
+                    }
+                  >
+                    {renderHeaderCell
+                      ? renderHeaderCell(header)
+                      : header.label}
+                    {sortLabel ? ` (${sortLabel})` : ""}
+                  </button>
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    className="grid-header-filter"
+                    disabled={!header.canFilter}
+                    aria-pressed={header.filterActive}
+                    onClick={() =>
+                      runtime.dispatch({
+                        type: "SET_COLUMN_FILTER",
+                        col: c,
+                        active: !header.filterActive
+                      })
+                    }
+                  >
+                    Filter
+                  </button>
+                  <div
+                    className="grid-header-resize"
+                    role="presentation"
+                    onPointerDown={event => {
+                      if (!header.canResize) return
+                      event.preventDefault()
+                      const startX = event.clientX
+                      const startWidth = header.width
+                      const handleMove = (moveEvent: PointerEvent) => {
+                        const nextWidth = Math.max(
+                          20,
+                          Math.round(
+                            startWidth + (moveEvent.clientX - startX)
+                          )
+                        )
+                        runtime.dispatch({
+                          type: "SET_COLUMN_WIDTH",
+                          col: c,
+                          width: nextWidth
+                        })
+                      }
+                      const handleUp = () => {
+                        window.removeEventListener("pointermove", handleMove)
+                        window.removeEventListener("pointerup", handleUp)
+                      }
+                      window.addEventListener("pointermove", handleMove)
+                      window.addEventListener("pointerup", handleUp)
+                    }}
+                    data-disabled={!header.canResize || undefined}
+                  />
+                </div>
+              </th>
+            )
+          })}
+        </tr>
+      </thead>
       <tbody>
         {useVirtual && topOffset > 0 && (
-          <tr role="presentation">
+          <tr role="presentation" aria-hidden="true">
             <td
               role="presentation"
               aria-hidden="true"
-              colSpan={columnSlots}
+              colSpan={cols}
               style={{ height: topOffset, border: "none", padding: 0 }}
             />
           </tr>
@@ -102,20 +243,14 @@ export function GridView({
           <tr
             key={r}
             role="row"
-            aria-rowindex={r + 1}
-            style={useVirtual ? { height: virtualization?.rowHeight } : undefined}
+            aria-rowindex={r + 2}
+            style={
+              useVirtual ? { height: virtualization?.rowHeight } : undefined
+            }
           >
-            {useVirtual && leftOffset > 0 && (
-              <td
-                role="presentation"
-                aria-hidden="true"
-                style={{ width: leftOffset, border: "none", padding: 0 }}
-              />
-            )}
             {colIndexes.map(c => {
               const cell = { row: r, col: c }
-              const focused =
-                vm.focus?.row === r && vm.focus?.col === c
+              const focused = vm.focus?.row === r && vm.focus?.col === c
               const range = vm.selectionRange
               const selected =
                 !!range &&
@@ -140,55 +275,30 @@ export function GridView({
                   aria-colindex={c + 1}
                   aria-selected={selected}
                   id={`${idPrefix}-cell-${r}-${c}`}
-                  style={
-                    useVirtual
-                      ? {
-                        width: virtualization?.colWidth,
-                        height: virtualization?.rowHeight
-                      }
-                      : undefined
-                  }
                   onClick={event => {
                     if (event.shiftKey) {
-                      const anchor =
-                        vm.selection.anchor ?? vm.focus
+                      const anchor = vm.selection.anchor ?? vm.focus
                       if (!anchor) {
-                        runtime.dispatch({
-                          type: "SET_ANCHOR",
-                          cell
-                        })
+                        runtime.dispatch({ type: "SET_ANCHOR", cell })
                       }
-                      runtime.dispatch({
-                        type: "EXTEND_SELECTION",
-                        cell
-                      })
+                      runtime.dispatch({ type: "EXTEND_SELECTION", cell })
                       return
                     }
-                    runtime.dispatch({
-                      type: "SELECT_CELL",
-                      cell
-                    })
+                    runtime.dispatch({ type: "SELECT_CELL", cell })
                   }}
                 >
                   {renderCell(cell)}
                 </td>
               )
             })}
-            {useVirtual && rightOffset > 0 && (
-              <td
-                role="presentation"
-                aria-hidden="true"
-                style={{ width: rightOffset, border: "none", padding: 0 }}
-              />
-            )}
           </tr>
         ))}
         {useVirtual && bottomOffset > 0 && (
-          <tr role="presentation">
+          <tr role="presentation" aria-hidden="true">
             <td
               role="presentation"
               aria-hidden="true"
-              colSpan={columnSlots}
+              colSpan={cols}
               style={{ height: bottomOffset, border: "none", padding: 0 }}
             />
           </tr>
@@ -206,8 +316,8 @@ export function GridView({
     const viewWidth = virtualization.width
     const cellTop = focus.row * virtualization.rowHeight
     const cellBottom = cellTop + virtualization.rowHeight
-    const cellLeft = focus.col * virtualization.colWidth
-    const cellRight = cellLeft + virtualization.colWidth
+    const cellLeft = colLeftOffsets[focus.col] ?? 0
+    const cellRight = cellLeft + (colWidths[focus.col] ?? 0)
     let nextTop = container.scrollTop
     let nextLeft = container.scrollLeft
 
@@ -226,7 +336,14 @@ export function GridView({
     if (nextTop !== scroll.top || nextLeft !== scroll.left) {
       setScroll({ top: nextTop, left: nextLeft })
     }
-  }, [virtualization, vm.focus, scroll.top, scroll.left])
+  }, [
+    colLeftOffsets,
+    colWidths,
+    virtualization,
+    vm.focus,
+    scroll.top,
+    scroll.left
+  ])
 
   if (!virtualization) {
     return table

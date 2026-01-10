@@ -37,6 +37,7 @@ export interface GridCellTemplateContext {
         border-collapse: collapse;
       }
 
+      th,
       td {
         border: 1px solid #ccc;
         padding: 4px 8px;
@@ -60,6 +61,48 @@ export interface GridCellTemplateContext {
         border: none;
         padding: 0;
       }
+
+      th.grid-header-cell {
+        padding: 0;
+        text-align: left;
+      }
+
+      .grid-header-inner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        position: relative;
+      }
+
+      .grid-header-label,
+      .grid-header-filter {
+        border: 1px solid transparent;
+        background: none;
+        padding: 2px 4px;
+        cursor: pointer;
+        font: inherit;
+      }
+
+      .grid-header-label:disabled,
+      .grid-header-filter:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+
+      .grid-header-resize {
+        position: absolute;
+        right: 0;
+        top: 0;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+      }
+
+      .grid-header-resize[data-disabled="true"] {
+        cursor: not-allowed;
+        opacity: 0.4;
+      }
     `
   ],
   template: `
@@ -74,35 +117,77 @@ export interface GridCellTemplateContext {
       <table
         tabindex="0"
         role="grid"
-        [attr.aria-rowcount]="rows"
+        [attr.aria-rowcount]="rows + 1"
         [attr.aria-colcount]="cols"
         [attr.aria-multiselectable]="vm.selectionRange ? 'true' : 'false'"
         [attr.aria-activedescendant]="activeDescendantId()"
-        [style.table-layout]="virtualization ? 'fixed' : null"
       >
+        <colgroup>
+          <col
+            *ngFor="let colWidth of colWidths; trackBy: trackCol"
+            [style.width.px]="colWidth"
+          />
+        </colgroup>
+        <thead>
+          <tr role="row" aria-rowindex="1">
+            <th
+              *ngFor="let header of headers; trackBy: trackCol"
+              role="columnheader"
+              scope="col"
+              class="grid-header-cell"
+              [attr.aria-colindex]="header.col + 1"
+              [attr.aria-sort]="ariaSort(header.sort)"
+              [attr.data-locked]="header.locked ? '' : null"
+              [attr.data-filter]="header.filterActive ? '' : null"
+              [attr.data-sort]="header.sort ?? 'none'"
+            >
+              <div class="grid-header-inner">
+                <button
+                  type="button"
+                  tabindex="-1"
+                  class="grid-header-label"
+                  (click)="toggleSort(header.col)"
+                  [disabled]="!header.canSort"
+                >
+                  {{ header.label }}
+                  <span *ngIf="header.sort">({{ header.sort }})</span>
+                </button>
+                <button
+                  type="button"
+                  tabindex="-1"
+                  class="grid-header-filter"
+                  (click)="toggleFilter(header.col)"
+                  [attr.aria-pressed]="header.filterActive"
+                  [disabled]="!header.canFilter"
+                >
+                  Filter
+                </button>
+                <div
+                  class="grid-header-resize"
+                  role="presentation"
+                  (pointerdown)="startResize(header, $event)"
+                  [attr.data-disabled]="!header.canResize ? 'true' : null"
+                ></div>
+              </div>
+            </th>
+          </tr>
+        </thead>
         <tbody>
           <tr *ngIf="virtualization && topOffset > 0" role="presentation">
             <td
               class="spacer"
               role="presentation"
               aria-hidden="true"
-              [attr.colspan]="columnSlots"
+              [attr.colspan]="cols"
               [style.height.px]="topOffset"
             ></td>
           </tr>
           <tr
             *ngFor="let r of rowIndexes; trackBy: trackRow"
             role="row"
-            [attr.aria-rowindex]="r + 1"
+            [attr.aria-rowindex]="r + 2"
             [style.height.px]="virtualization?.rowHeight"
           >
-            <td
-              *ngIf="virtualization && leftOffset > 0"
-              class="spacer"
-              role="presentation"
-              aria-hidden="true"
-              [style.width.px]="leftOffset"
-            ></td>
             <td
               *ngFor="let c of colIndexes; trackBy: trackCol"
               [attr.data-focused]="isFocused(r, c) ? '' : null"
@@ -112,7 +197,6 @@ export interface GridCellTemplateContext {
               [attr.aria-colindex]="c + 1"
               [attr.aria-selected]="isSelected(r, c) ? 'true' : 'false'"
               [attr.id]="cellId(r, c)"
-              [style.width.px]="virtualization?.colWidth"
               [style.height.px]="virtualization?.rowHeight"
               (click)="onCellClick(r, c, $event)"
             >
@@ -124,20 +208,13 @@ export interface GridCellTemplateContext {
                 {{ r }},{{ c }}
               </ng-template>
             </td>
-            <td
-              *ngIf="virtualization && rightOffset > 0"
-              class="spacer"
-              role="presentation"
-              aria-hidden="true"
-              [style.width.px]="rightOffset"
-            ></td>
           </tr>
           <tr *ngIf="virtualization && bottomOffset > 0" role="presentation">
             <td
               class="spacer"
               role="presentation"
               aria-hidden="true"
-              [attr.colspan]="columnSlots"
+              [attr.colspan]="cols"
               [style.height.px]="bottomOffset"
             ></td>
           </tr>
@@ -156,7 +233,6 @@ export class GridViewComponent
   @Input() cellTemplate?: TemplateRef<GridCellTemplateContext>
   @Input() virtualization?: {
     rowHeight: number
-    colWidth: number
     width: number
     height: number
     overscan?: number
@@ -167,23 +243,21 @@ export class GridViewComponent
     selection: { anchor: null, rangeEnd: null },
     selectionRange: null,
     edit: { status: "idle", cell: null },
-    columns: []
+    columns: [],
+    headers: []
   }
   rowIndexes: number[] = []
   colIndexes: number[] = []
+  headers: GridViewModel["headers"] = []
+  colWidths: number[] = []
   readonly idPrefix = `busted-grid-${Math.random()
     .toString(36)
     .slice(2)}`
   @ViewChild("scroller") scroller?: ElementRef<HTMLDivElement>
   rowStart = 0
   rowEnd = -1
-  colStart = 0
-  colEnd = -1
-  leftOffset = 0
-  rightOffset = 0
   topOffset = 0
   bottomOffset = 0
-  columnSlots = 0
   private scrollTop = 0
   private scrollLeft = 0
   private lastFocusKey: string | null = null
@@ -278,6 +352,52 @@ export class GridViewComponent
     this.updateViewModel()
   }
 
+  toggleSort(col: number): void {
+    this.runtime.dispatch({ type: "TOGGLE_COLUMN_SORT", col })
+  }
+
+  toggleFilter(col: number): void {
+    const header = this.headers.find(item => item.col === col)
+    this.runtime.dispatch({
+      type: "SET_COLUMN_FILTER",
+      col,
+      active: !(header?.filterActive ?? false)
+    })
+  }
+
+  ariaSort(sort: GridViewModel["headers"][number]["sort"]): string {
+    if (sort === "asc") return "ascending"
+    if (sort === "desc") return "descending"
+    return "none"
+  }
+
+  startResize(
+    header: GridViewModel["headers"][number],
+    event: PointerEvent
+  ): void {
+    if (!header.canResize) return
+    event.preventDefault()
+    const startX = event.clientX
+    const startWidth = header.width
+    const move = (moveEvent: PointerEvent) => {
+      const nextWidth = Math.max(
+        20,
+        Math.round(startWidth + (moveEvent.clientX - startX))
+      )
+      this.runtime.dispatch({
+        type: "SET_COLUMN_WIDTH",
+        col: header.col,
+        width: nextWidth
+      })
+    }
+    const up = () => {
+      window.removeEventListener("pointermove", move)
+      window.removeEventListener("pointerup", up)
+    }
+    window.addEventListener("pointermove", move)
+    window.addEventListener("pointerup", up)
+  }
+
   cellContext(row: number, col: number): GridCellTemplateContext {
     const cell = { row, col }
     return { $implicit: cell, cell }
@@ -314,68 +434,47 @@ export class GridViewComponent
       rows: this.rows,
       cols: this.cols,
       rowHeight: this.virtualization.rowHeight,
-      colWidth: this.virtualization.colWidth,
       viewportHeight: this.virtualization.height,
-      viewportWidth: this.virtualization.width,
       scrollTop: this.scrollTop,
-      scrollLeft: this.scrollLeft,
       overscan: this.virtualization.overscan
     }
   }
 
   private updateVirtualization(): void {
+    this.headers = this.vm.headers
+    this.colWidths = createIndexArray(this.cols).map(
+      idx => this.vm.columns[idx]?.width ?? 120
+    )
+
     if (!this.virtualization || !this.vm.viewport) {
       this.rowIndexes = createIndexArray(this.rows)
       this.colIndexes = createIndexArray(this.cols)
       this.rowStart = 0
       this.rowEnd = this.rows - 1
-      this.colStart = 0
-      this.colEnd = this.cols - 1
-      this.leftOffset = 0
-      this.rightOffset = 0
       this.topOffset = 0
       this.bottomOffset = 0
-      this.columnSlots = this.cols
       return
     }
 
     const rowRange = this.vm.viewport.rowRange
-    const colRange = this.vm.viewport.colRange
     this.rowStart = Math.max(0, rowRange.start)
     this.rowEnd = Math.min(this.rows - 1, rowRange.end)
-    this.colStart = Math.max(0, colRange.start)
-    this.colEnd = Math.min(this.cols - 1, colRange.end)
 
-    if (this.rowEnd < this.rowStart || this.colEnd < this.colStart) {
+    if (this.rowEnd < this.rowStart) {
       this.rowIndexes = []
-      this.colIndexes = []
-      this.leftOffset = 0
-      this.rightOffset = 0
       this.topOffset = 0
       this.bottomOffset = 0
-      this.columnSlots = 1
       return
     }
 
     this.rowIndexes = createIndexArray(this.rowEnd - this.rowStart + 1).map(
       idx => this.rowStart + idx
     )
-    this.colIndexes = createIndexArray(this.colEnd - this.colStart + 1).map(
-      idx => this.colStart + idx
-    )
-    this.leftOffset = this.colStart * this.virtualization.colWidth
-    this.rightOffset =
-      Math.max(0, this.cols - this.colEnd - 1) *
-      this.virtualization.colWidth
+    this.colIndexes = createIndexArray(this.cols)
     this.topOffset = this.rowStart * this.virtualization.rowHeight
     this.bottomOffset =
       Math.max(0, this.rows - this.rowEnd - 1) *
       this.virtualization.rowHeight
-    const visibleCols = this.colEnd - this.colStart + 1
-    this.columnSlots =
-      (visibleCols > 0 ? visibleCols : 1) +
-      (this.leftOffset > 0 ? 1 : 0) +
-      (this.rightOffset > 0 ? 1 : 0)
   }
 
   private ensureFocusVisible(): void {
@@ -394,8 +493,10 @@ export class GridViewComponent
     const viewWidth = this.virtualization.width
     const cellTop = focus.row * this.virtualization.rowHeight
     const cellBottom = cellTop + this.virtualization.rowHeight
-    const cellLeft = focus.col * this.virtualization.colWidth
-    const cellRight = cellLeft + this.virtualization.colWidth
+    const cellLeft = this.colWidths
+      .slice(0, focus.col)
+      .reduce((sum, width) => sum + width, 0)
+    const cellRight = cellLeft + (this.colWidths[focus.col] ?? 120)
     let nextTop = scroller.scrollTop
     let nextLeft = scroller.scrollLeft
 

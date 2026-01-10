@@ -6,25 +6,23 @@ export function deriveViewport(config: ViewportConfig): GridViewport {
   const rows = Math.max(0, config.rows | 0)
   const cols = Math.max(0, config.cols | 0)
   const rowHeight = Math.max(1, config.rowHeight)
-  const colWidth = Math.max(1, config.colWidth)
   const viewportHeight = Math.max(0, config.viewportHeight)
-  const viewportWidth = Math.max(0, config.viewportWidth)
   const scrollTop = Math.max(0, config.scrollTop)
-  const scrollLeft = Math.max(0, config.scrollLeft)
+  const viewportWidth = Math.max(0, config.viewportWidth ?? 0)
+  const scrollLeft = Math.max(0, config.scrollLeft ?? 0)
   const overscan = Math.max(0, config.overscan ?? DEFAULT_OVERSCAN)
 
   return {
     rows,
     cols,
     rowHeight,
-    colWidth,
     viewportHeight,
     viewportWidth,
     scrollTop,
     scrollLeft,
     overscan,
     rowRange: getRange(scrollTop, viewportHeight, rowHeight, rows, overscan),
-    colRange: getRange(scrollLeft, viewportWidth, colWidth, cols, overscan)
+    colRange: { start: 0, end: cols - 1 }
   }
 }
 

@@ -2,9 +2,52 @@ table {
   border-collapse: collapse;
 }
 
+th,
 td {
   border: 1px solid #ccc;
   padding: 4px 8px;
+}
+
+th.grid-header-cell {
+  padding: 0;
+  text-align: left;
+}
+
+.grid-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  position: relative;
+}
+
+.grid-header-label,
+.grid-header-filter {
+  border: 1px solid transparent;
+  background: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.grid-header-label:disabled,
+.grid-header-filter:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.grid-header-resize {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.grid-header-resize[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 td[data-focused] {

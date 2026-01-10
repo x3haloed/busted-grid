@@ -1,4 +1,4 @@
-import type { Cell } from "./types.js"
+import type { Cell, SortDirection } from "./types.js"
 import type { GridState } from "./state.js"
 
 export interface GridConstraints {
@@ -9,4 +9,8 @@ export interface GridConstraints {
   canExtendSelection?(anchor: Cell, to: Cell, state: GridState): boolean
   canBeginEdit?(cell: Cell, state: GridState): boolean
   canCommitEdit?(cell: Cell, value: unknown, state: GridState): boolean
+  canSortColumn?(col: number, direction: SortDirection, state: GridState): boolean
+  canFilterColumn?(col: number, active: boolean, state: GridState): boolean
+  canResizeColumn?(col: number, width: number, state: GridState): boolean
+  canLockColumn?(col: number, locked: boolean, state: GridState): boolean
 }

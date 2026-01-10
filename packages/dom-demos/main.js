@@ -8,17 +8,16 @@ import { attachKeyboard } from "../keyboard/dist/index.js"
 const rows = 200
 const cols = 40
 const columnWidth = 100
+const minColumnWidth = 80
+const maxColumnWidth = 160
 const rowHeight = 28
 const container = document.getElementById("grid-container")
-const header = document.getElementById("grid-header")
-const headerTrack = document.getElementById("grid-header-track")
 const statusEl = document.getElementById("status")
 const commandLog = document.getElementById("command-log")
 const randomizeButton = document.getElementById("randomize")
 const clearStatusButton = document.getElementById("clear-errors")
 const selectionGuardButton = document.getElementById("toggle-selection-guard")
 
-const lockedColumns = new Set([0, 1])
 const selectionGuard = { enabled: false }
 
 const state = {
@@ -27,7 +26,8 @@ const state = {
   edit: { status: "idle", cell: null },
   columns: Array.from({ length: cols }, (_, index) => ({
     width: columnWidth,
-    locked: lockedColumns.has(index)
+    locked: index < 2,
+    label: columnLabel(index)
   }))
 }
 
@@ -82,27 +82,11 @@ function columnLabel(index) {
   return label
 }
 
-function isLockedColumn(col) {
-  return lockedColumns.has(col)
-}
-
-function setColumnLocked(col, locked) {
-  if (locked) {
-    lockedColumns.add(col)
-  } else {
-    lockedColumns.delete(col)
-  }
-  const column = state.columns[col]
-  if (column) {
-    column.locked = locked
-  }
-}
-
 const editPolicy = {
   ...defaultEditPolicy,
-  commitEdit: async (cell, value) => {
+  commitEdit: async (cell, value, gridState) => {
     await delay(300)
-    if (isLockedColumn(cell.col)) {
+    if (gridState.columns[cell.col]?.locked) {
       throw new Error(`Column ${columnLabel(cell.col)} is locked.`)
     }
     if (typeof value !== "number" || Number.isNaN(value)) {
@@ -143,10 +127,19 @@ const constraints = {
     )
   },
   canBeginEdit(cell) {
-    return !isLockedColumn(cell.col)
+    return !state.columns[cell.col]?.locked
   },
   canCommitEdit(cell) {
-    return !isLockedColumn(cell.col)
+    return !state.columns[cell.col]?.locked
+  },
+  canSortColumn(col) {
+    return col % 3 !== 0
+  },
+  canFilterColumn(col) {
+    return col % 4 !== 0
+  },
+  canResizeColumn(_col, width) {
+    return width >= minColumnWidth && width <= maxColumnWidth
   }
 }
 
@@ -221,55 +214,82 @@ const domHandle = attachDomGrid(container, runtime, {
   idPrefix: "demo-grid",
   virtualization: {
     rowHeight,
-    colWidth: columnWidth,
     overscan: 2
   },
+  headerFormatter: header => formatHeader(header),
   cellFormatter: formatCell
 })
 
-function renderHeader() {
-  if (!headerTrack) return
-  headerTrack.innerHTML = ""
-  headerTrack.style.width = `${cols * columnWidth}px`
-  for (let c = 0; c < cols; c++) {
-    const cell = document.createElement("div")
-    cell.className = "header-cell"
-    cell.dataset.col = String(c)
-    cell.dataset.locked = isLockedColumn(c) ? "true" : "false"
-
-    const label = document.createElement("span")
-    label.className = "header-label"
-    label.textContent = `Col ${columnLabel(c)}`
-
-    const lockButton = document.createElement("button")
-    lockButton.type = "button"
-    lockButton.textContent = isLockedColumn(c) ? "Unlock" : "Lock"
-    lockButton.addEventListener("click", () => {
-      const nextLocked = !isLockedColumn(c)
-      setColumnLocked(c, nextLocked)
-      setStatus(
-        nextLocked
-          ? `Locked column ${columnLabel(c)}.`
-          : `Unlocked column ${columnLabel(c)}.`
-      )
-      requestRender()
-    })
-
-    cell.append(label, lockButton)
-    headerTrack.appendChild(cell)
-  }
-}
-
-function syncHeaderScroll() {
-  if (!header) return
-  header.scrollLeft = container.scrollLeft
-}
-
 requestRender = () => {
   domHandle.rerender()
-  renderHeader()
 }
-renderHeader()
+
+function formatHeader(header) {
+  const wrapper = document.createElement("div")
+  wrapper.className = "header-inner"
+
+  const label = document.createElement("div")
+  label.className = "header-label"
+  label.textContent = header.label
+
+  const actions = document.createElement("div")
+  actions.className = "header-actions"
+
+  const filterButton = document.createElement("button")
+  filterButton.type = "button"
+  filterButton.tabIndex = -1
+  filterButton.textContent = header.filterActive ? "Filter on" : "Filter"
+  filterButton.disabled = !header.canFilter
+  filterButton.addEventListener("click", () => {
+    runtime.dispatch({
+      type: "SET_COLUMN_FILTER",
+      col: header.col,
+      active: !header.filterActive
+    })
+  })
+
+  const shrinkButton = document.createElement("button")
+  shrinkButton.type = "button"
+  shrinkButton.tabIndex = -1
+  shrinkButton.textContent = "W-"
+  shrinkButton.disabled = !header.canResize
+  shrinkButton.addEventListener("click", () => {
+    runtime.dispatch({
+      type: "SET_COLUMN_WIDTH",
+      col: header.col,
+      width: header.width - 10
+    })
+  })
+
+  const growButton = document.createElement("button")
+  growButton.type = "button"
+  growButton.tabIndex = -1
+  growButton.textContent = "W+"
+  growButton.disabled = !header.canResize
+  growButton.addEventListener("click", () => {
+    runtime.dispatch({
+      type: "SET_COLUMN_WIDTH",
+      col: header.col,
+      width: header.width + 10
+    })
+  })
+
+  const lockButton = document.createElement("button")
+  lockButton.type = "button"
+  lockButton.tabIndex = -1
+  lockButton.textContent = header.locked ? "Unlock" : "Lock"
+  lockButton.addEventListener("click", () => {
+    runtime.dispatch({
+      type: "SET_COLUMN_LOCKED",
+      col: header.col,
+      locked: !header.locked
+    })
+  })
+
+  actions.append(filterButton, shrinkButton, growButton, lockButton)
+  wrapper.append(label, actions)
+  return wrapper
+}
 
 class CellEditor {
   constructor() {
@@ -342,7 +362,6 @@ runtime.subscribe(() => {
 })
 
 attachKeyboard(container, runtime)
-container.addEventListener("scroll", syncHeaderScroll)
 
 // Ensure grid gets focus when clicked
 container.addEventListener("mousedown", () => {
@@ -372,7 +391,7 @@ randomizeButton?.addEventListener("click", () => {
     }
   }
   setStatus("Randomized data.")
-  domHandle.rerender()
+  requestRender()
 })
 
 clearStatusButton?.addEventListener("click", () => {

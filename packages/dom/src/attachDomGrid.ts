@@ -53,17 +53,21 @@ export function attachDomGrid(
 function ensureFocusVisible(
   container: HTMLElement,
   runtime: GridRuntime,
-  virtualization: { rowHeight: number; colWidth: number }
+  virtualization: { rowHeight: number }
 ): void {
   const focus = runtime.getViewModel().focus
   if (!focus) return
-  const { rowHeight, colWidth } = virtualization
+  const { rowHeight } = virtualization
   const viewHeight = container.clientHeight
   const viewWidth = container.clientWidth
   const cellTop = focus.row * rowHeight
   const cellBottom = cellTop + rowHeight
-  const cellLeft = focus.col * colWidth
-  const cellRight = cellLeft + colWidth
+  const columns = runtime.getViewModel().columns
+  let cellLeft = 0
+  for (let c = 0; c < focus.col; c++) {
+    cellLeft += columns[c]?.width ?? 120
+  }
+  const cellRight = cellLeft + (columns[focus.col]?.width ?? 120)
   let nextTop = container.scrollTop
   let nextLeft = container.scrollLeft
 

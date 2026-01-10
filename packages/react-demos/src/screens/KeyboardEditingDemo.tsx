@@ -37,9 +37,10 @@ export function KeyboardEditingDemo(): JSX.Element {
       focus: { row: 0, col: 0 },
       selection: { anchor: null, rangeEnd: null },
       edit: { status: "idle", cell: null },
-      columns: Array.from({ length: cols }, () => ({
+      columns: Array.from({ length: cols }, (_, index) => ({
         width: 120,
-        locked: false
+        locked: false,
+        label: columnLabel(index)
       }))
     }
 
@@ -59,6 +60,15 @@ export function KeyboardEditingDemo(): JSX.Element {
           to.col >= 0 &&
           to.col < cols
         )
+      },
+      canSortColumn(col: number) {
+        return col % 3 !== 0
+      },
+      canFilterColumn(col: number) {
+        return col % 4 !== 0
+      },
+      canResizeColumn(_col: number, width: number) {
+        return width >= 80 && width <= 180
       }
     }
 
@@ -161,7 +171,6 @@ function KeyboardEditingView({
 
   const virtualization = React.useMemo(() => ({
     rowHeight: 30,
-    colWidth: 120,
     width: 980,
     height: 520,
     overscan: 2
@@ -465,4 +474,14 @@ function toNumber(value: unknown): number | null {
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function columnLabel(index: number): string {
+  let label = ""
+  let value = index
+  while (value >= 0) {
+    label = String.fromCharCode(65 + (value % 26)) + label
+    value = Math.floor(value / 26) - 1
+  }
+  return label
 }

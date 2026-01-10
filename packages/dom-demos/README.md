@@ -25,6 +25,7 @@ Open `http://localhost:5174`.
 - Negative values are rejected on commit.
 - Non-numeric input is rejected.
 - Locked columns are read-only (toggle in the header controls).
+- Header controls dispatch sort, filter, and resize commands.
 - Selection guard cancels range expansion via a command hook.
 
 ### Architecture notes

@@ -1,5 +1,6 @@
 import type {
   Cell,
+  ColumnHeaderState,
   GridRuntime,
   GridViewModel
 } from "@busted-grid/runtime"
@@ -17,9 +18,12 @@ export interface DomGridOptions {
   cols: number
   classNames?: DomGridClassNames
   cellFormatter?: (cell: Cell, vm: GridViewModel) => string
+  headerFormatter?: (
+    header: ColumnHeaderState,
+    vm: GridViewModel
+  ) => string | HTMLElement
   virtualization?: {
     rowHeight: number
-    colWidth: number
     overscan?: number
   }
   idPrefix?: string
@@ -32,19 +36,25 @@ export function renderGrid(
   runtime: GridRuntime,
   options: DomGridOptions
 ): void {
-  const { rows, cols, classNames, cellFormatter, virtualization, idPrefix } =
+  const {
+    rows,
+    cols,
+    classNames,
+    cellFormatter,
+    headerFormatter,
+    virtualization,
+    idPrefix
+  } =
     options
   const formatCell = cellFormatter ?? defaultCellFormatter
+  const formatHeader = headerFormatter
   const viewport = virtualization
     ? {
         rows,
         cols,
         rowHeight: virtualization.rowHeight,
-        colWidth: virtualization.colWidth,
         viewportHeight: container.clientHeight,
-        viewportWidth: container.clientWidth,
         scrollTop: container.scrollTop,
-        scrollLeft: container.scrollLeft,
         overscan: virtualization.overscan
       }
     : undefined
@@ -52,14 +62,13 @@ export function renderGrid(
   const selectionRange = vm.selectionRange
   const edit = vm.edit
   const rowRange = vm.viewport?.rowRange ?? { start: 0, end: rows - 1 }
-  const colRange = vm.viewport?.colRange ?? { start: 0, end: cols - 1 }
 
   container.innerHTML = ""
 
   const table = document.createElement("table")
   table.tabIndex = 0
   table.setAttribute("role", "grid")
-  table.setAttribute("aria-rowcount", String(rows))
+  table.setAttribute("aria-rowcount", String(rows + 1))
   table.setAttribute("aria-colcount", String(cols))
   table.setAttribute(
     "aria-multiselectable",
@@ -80,58 +89,96 @@ export function renderGrid(
 
   const rowStart = Math.max(0, rowRange.start)
   const rowEnd = Math.min(rows - 1, rowRange.end)
-  const colStart = Math.max(0, colRange.start)
-  const colEnd = Math.min(cols - 1, colRange.end)
-  const useVirtual = !!virtualization && rowEnd >= rowStart && colEnd >= colStart
+  const useVirtual = !!virtualization && rowEnd >= rowStart
   const rowHeight = virtualization?.rowHeight
-  const colWidth = virtualization?.colWidth
-  const leftOffset = useVirtual ? colStart * (colWidth ?? 0) : 0
-  const rightOffset = useVirtual
-    ? Math.max(0, cols - colEnd - 1) * (colWidth ?? 0)
-    : 0
   const topOffset = useVirtual ? rowStart * (rowHeight ?? 0) : 0
   const bottomOffset = useVirtual
     ? Math.max(0, rows - rowEnd - 1) * (rowHeight ?? 0)
     : 0
-  const visibleCols = useVirtual ? colEnd - colStart + 1 : cols
-  const columnSlots =
-    (visibleCols > 0 ? visibleCols : 1) +
-    (leftOffset > 0 ? 1 : 0) +
-    (rightOffset > 0 ? 1 : 0)
 
+  const colgroup = document.createElement("colgroup")
+  for (let c = 0; c < cols; c++) {
+    const col = document.createElement("col")
+    col.style.width = `${vm.columns[c]?.width ?? 120}px`
+    colgroup.appendChild(col)
+  }
+  table.appendChild(colgroup)
+
+  const thead = document.createElement("thead")
+  const headerRow = document.createElement("tr")
+  headerRow.setAttribute("role", "row")
+  headerRow.setAttribute("aria-rowindex", "1")
+  for (let c = 0; c < cols; c++) {
+    const header = vm.headers[c] ?? {
+      col: c,
+      label: `Column ${c + 1}`,
+      width: vm.columns[c]?.width ?? 120,
+      locked: false,
+      sort: null,
+      filterActive: false,
+      canSort: true,
+      canFilter: true,
+      canResize: true
+    }
+    const th = document.createElement("th")
+    th.setAttribute("role", "columnheader")
+    th.setAttribute("scope", "col")
+    th.setAttribute("aria-colindex", String(c + 1))
+    th.setAttribute(
+      "aria-sort",
+      header.sort === "asc"
+        ? "ascending"
+        : header.sort === "desc"
+          ? "descending"
+          : "none"
+    )
+
+    const content = formatHeader?.(header, vm)
+    if (typeof content === "string" || content == null) {
+      th.textContent = content ?? header.label
+    } else {
+      th.appendChild(content)
+    }
+
+    th.onclick = event => {
+      const target = event.target
+      if (target instanceof HTMLElement && target.closest("button")) return
+      runtime.dispatch({ type: "TOGGLE_COLUMN_SORT", col: c })
+    }
+    headerRow.appendChild(th)
+  }
+  thead.appendChild(headerRow)
+  table.appendChild(thead)
+
+  const tbody = document.createElement("tbody")
   if (useVirtual && topOffset > 0) {
     const spacerRow = document.createElement("tr")
     spacerRow.setAttribute("role", "presentation")
+    spacerRow.setAttribute("aria-hidden", "true")
     const spacerCell = document.createElement("td")
     spacerCell.setAttribute("role", "presentation")
     spacerCell.setAttribute("aria-hidden", "true")
-    spacerCell.colSpan = columnSlots
+    spacerCell.colSpan = cols
     spacerCell.style.height = `${topOffset}px`
     spacerCell.style.border = "none"
     spacerCell.style.padding = "0"
     spacerRow.appendChild(spacerCell)
-    table.appendChild(spacerRow)
+    tbody.appendChild(spacerRow)
   }
 
-  for (let r = useVirtual ? rowStart : 0; r <= (useVirtual ? rowEnd : rows - 1); r++) {
+  for (
+    let r = useVirtual ? rowStart : 0;
+    r <= (useVirtual ? rowEnd : rows - 1);
+    r++
+  ) {
     const tr = document.createElement("tr")
     tr.setAttribute("role", "row")
-    tr.setAttribute("aria-rowindex", String(r + 1))
+    tr.setAttribute("aria-rowindex", String(r + 2))
     if (rowHeight) {
       tr.style.height = `${rowHeight}px`
     }
 
-    if (useVirtual && leftOffset > 0) {
-      const spacer = document.createElement("td")
-      spacer.setAttribute("role", "presentation")
-      spacer.setAttribute("aria-hidden", "true")
-      spacer.style.width = `${leftOffset}px`
-      spacer.style.border = "none"
-      spacer.style.padding = "0"
-      tr.appendChild(spacer)
-    }
-
-    for (let c = useVirtual ? colStart : 0; c <= (useVirtual ? colEnd : cols - 1); c++) {
+    for (let c = 0; c < cols; c++) {
       const td = document.createElement("td")
       const cell = { row: r, col: c }
       const isFocused = vm.focus?.row === r && vm.focus?.col === c
@@ -161,9 +208,6 @@ export function renderGrid(
       td.setAttribute("aria-colindex", String(c + 1))
       td.setAttribute("aria-selected", isSelected ? "true" : "false")
       td.id = getCellId(r, c, idPrefix)
-      if (colWidth) {
-        td.style.width = `${colWidth}px`
-      }
       if (rowHeight) {
         td.style.height = `${rowHeight}px`
       }
@@ -186,33 +230,25 @@ export function renderGrid(
       tr.appendChild(td)
     }
 
-    if (useVirtual && rightOffset > 0) {
-      const spacer = document.createElement("td")
-      spacer.setAttribute("role", "presentation")
-      spacer.setAttribute("aria-hidden", "true")
-      spacer.style.width = `${rightOffset}px`
-      spacer.style.border = "none"
-      spacer.style.padding = "0"
-      tr.appendChild(spacer)
-    }
-
-    table.appendChild(tr)
+    tbody.appendChild(tr)
   }
 
   if (useVirtual && bottomOffset > 0) {
     const spacerRow = document.createElement("tr")
     spacerRow.setAttribute("role", "presentation")
+    spacerRow.setAttribute("aria-hidden", "true")
     const spacerCell = document.createElement("td")
     spacerCell.setAttribute("role", "presentation")
     spacerCell.setAttribute("aria-hidden", "true")
-    spacerCell.colSpan = columnSlots
+    spacerCell.colSpan = cols
     spacerCell.style.height = `${bottomOffset}px`
     spacerCell.style.border = "none"
     spacerCell.style.padding = "0"
     spacerRow.appendChild(spacerCell)
-    table.appendChild(spacerRow)
+    tbody.appendChild(spacerRow)
   }
 
+  table.appendChild(tbody)
   container.appendChild(table)
 }
 

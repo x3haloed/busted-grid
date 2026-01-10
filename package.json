@@ -10,7 +10,7 @@
     "npm": ">=7"
   },
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w @busted-grid/runtime && npm run build -w @busted-grid/keyboard && npm run build -w @busted-grid/dom && npm run build -w @busted-grid/react && npm run build -w @busted-grid/angular && npm run build -w @busted-grid/react-demos",
     "clean": "rimraf packages/*/dist"
   },
   "devDependencies": {

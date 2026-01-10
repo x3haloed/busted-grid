@@ -22,9 +22,26 @@ export interface SelectionRange {
   end: Cell
 }
 
+export type SortDirection = "asc" | "desc" | null
+
 export interface ColumnState {
   width: number
   locked: boolean
+  label?: string
+  sort?: SortDirection
+  filterActive?: boolean
+}
+
+export interface ColumnHeaderState {
+  col: number
+  label: string
+  width: number
+  locked: boolean
+  sort: SortDirection
+  filterActive: boolean
+  canSort: boolean
+  canFilter: boolean
+  canResize: boolean
 }
 
 export interface VisibleRange {
@@ -36,11 +53,10 @@ export interface ViewportConfig {
   rows: number
   cols: number
   rowHeight: number
-  colWidth: number
   viewportHeight: number
-  viewportWidth: number
   scrollTop: number
-  scrollLeft: number
+  viewportWidth?: number
+  scrollLeft?: number
   overscan?: number
 }
 
@@ -56,5 +72,6 @@ export interface GridViewModel {
   selectionRange: SelectionRange | null
   edit: EditState
   columns: ColumnState[]
+  headers: ColumnHeaderState[]
   viewport?: GridViewport
 }

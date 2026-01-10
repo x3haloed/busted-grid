@@ -48,31 +48,18 @@
   gap: 12px;
 }
 
-.grid-header {
-  border: 1px solid #cbd5f5;
-  border-radius: 8px;
+.grid-container th {
+  padding: 0;
+  text-align: left;
   background: #ffffff;
-  overflow: hidden;
 }
 
-.grid-header-track {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 100px;
-}
-
-.header-cell {
+.header-inner {
   display: grid;
   grid-template-rows: auto auto;
   gap: 6px;
   padding: 8px;
-  border-right: 1px solid #e2e8f0;
-  min-height: 56px;
   font-size: 12px;
-}
-
-.header-cell:last-child {
-  border-right: none;
 }
 
 .header-label {
@@ -80,7 +67,13 @@
   color: #0f172a;
 }
 
-.header-cell button {
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.header-actions button {
   border: 1px solid #94a3b8;
   background: #ffffff;
   padding: 4px 6px;
@@ -89,16 +82,25 @@
   font-size: 12px;
 }
 
-.header-cell button:hover {
+.header-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.header-actions button:hover {
   background: #f1f5f9;
 }
 
-.header-cell[data-locked="true"] {
+.grid-container th[data-locked="true"] {
   background: #fef3c7;
 }
 
-.header-cell[data-locked="true"] .header-label {
+.grid-container th[data-locked="true"] .header-label {
   color: #92400e;
+}
+
+.grid-container th[data-filter="true"] .header-label {
+  color: #1d4ed8;
 }
 
 .grid-container {
